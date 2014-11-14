@@ -75,6 +75,9 @@ var sax;
                             _this.$$onContentObject(_this.curObject);
                         }
                     }
+                    for (var key in node.attributes) {
+                        _this.$$handleAttribute(node.attributes[key]);
+                    }
                 };
                 parser.onclosetag = function (tagName) {
                     if (curTag.lastText && !curTag.ignoreText) {
@@ -91,28 +94,7 @@ var sax;
                     }
                     curTag = tags[tags.length - 1];
                 };
-                parser.onattribute = function (attr) {
-                    if (attr.prefix === "xmlns")
-                        return;
-                    var tagName = attr.local;
-                    if (attr.uri === xaml.DEFAULT_XMLNS_X) {
-                        if (tagName === "Name")
-                            return _this.$$onName(attr.value);
-                        if (tagName === "Key")
-                            return _this.$$onKey(attr.value);
-                    }
-                    var type = null;
-                    var name = tagName;
-                    var ind = tagName.indexOf('.');
-                    if (ind > -1) {
-                        type = _this.$$onResolveType(attr.uri, name.substr(0, ind));
-                        name = name.substr(ind + 1);
-                    }
-                    _this.$$onPropertyStart(type, name);
-                    _this.$$onObject(attr.value);
-                    _this.$$onObjectEnd(attr.value);
-                    _this.$$onPropertyEnd(type, name);
-                };
+
                 parser.ontext = function (text) {
                     if (curTag)
                         curTag.lastText = text;
@@ -130,6 +112,29 @@ var sax;
 
             Parser.prototype.$$ensure = function () {
                 this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onObjectEnd(this.$$onObjectEnd).onContentObject(this.$$onContentObject).onContentText(this.$$onContentText).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
+            };
+
+            Parser.prototype.$$handleAttribute = function (attr) {
+                if (attr.prefix === "xmlns")
+                    return;
+                var tagName = attr.local;
+                if (attr.uri === xaml.DEFAULT_XMLNS_X) {
+                    if (tagName === "Name")
+                        return this.$$onName(attr.value);
+                    if (tagName === "Key")
+                        return this.$$onKey(attr.value);
+                }
+                var type = null;
+                var name = tagName;
+                var ind = tagName.indexOf('.');
+                if (ind > -1) {
+                    type = this.$$onResolveType(attr.uri, name.substr(0, ind));
+                    name = name.substr(ind + 1);
+                }
+                this.$$onPropertyStart(type, name);
+                this.$$onObject(attr.value);
+                this.$$onObjectEnd(attr.value);
+                this.$$onPropertyEnd(type, name);
             };
 
             Parser.prototype.onResolveType = function (cb) {

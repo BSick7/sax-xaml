@@ -42,11 +42,6 @@ module sax.xaml.tests.basic {
                 }, 'co Application');
                 i++;
                 deepEqual(cmds[i], {
-                    cmd: 'name',
-                    name: 'LayoutRoot'
-                }, 'name Application');
-                i++;
-                deepEqual(cmds[i], {
                     cmd: 'rt',
                     xmlns: sax.xaml.DEFAULT_XMLNS,
                     name: 'Button',
@@ -64,6 +59,11 @@ module sax.xaml.tests.basic {
                     cmd: 'co',
                     obj: btn
                 }, 'co Button');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'name',
+                    name: 'LayoutRoot'
+                }, 'name Button');
                 i++;
                 deepEqual(cmds[i], {
                     cmd: 'ct',

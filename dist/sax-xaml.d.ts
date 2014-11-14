@@ -56,6 +56,7 @@ declare module sax.xaml {
         public info : IParseInfo;
         public parse(xml: string): Parser;
         private $$ensure();
+        private $$handleAttribute(attr);
         public onResolveType(cb?: events.IResolveType): Parser;
         public onObjectResolve(cb?: events.IObjectResolve): Parser;
         public onObject(cb?: events.IObject): Parser;

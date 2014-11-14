@@ -27,11 +27,6 @@ module sax.xaml.tests.multi {
                     cmd: 'co',
                     obj: app
                 }, 'co Application');
-                i++;
-                deepEqual(cmds[i], {
-                    cmd: 'name',
-                    name: 'LayoutRoot'
-                }, 'name Application');
 
                 //Grid
                 i++;
@@ -53,6 +48,11 @@ module sax.xaml.tests.multi {
                     cmd: 'co',
                     obj: grid
                 }, 'co Grid');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'name',
+                    name: 'LayoutRoot'
+                }, 'name Grid');
 
                 //Border 1
                 i++;

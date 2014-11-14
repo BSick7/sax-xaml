@@ -122,6 +122,9 @@ module sax.xaml {
                         this.$$onContentObject(this.curObject);
                     }
                 }
+                for (var key in node.attributes) {
+                    this.$$handleAttribute(node.attributes[key]);
+                }
             };
             parser.onclosetag = (tagName: string) => {
                 // NOTE:
@@ -141,33 +144,7 @@ module sax.xaml {
                 }
                 curTag = tags[tags.length - 1];
             };
-            parser.onattribute = (attr: sax.IAttribute) => {
-                // NOTE:
-                //  ... [ns:]Type.Name="..."
-                //  ... x:Name="..."
-                //  ... x:Key="..."
-                //  ... Name="..."
-                if (attr.prefix === "xmlns")
-                    return;
-                var tagName = attr.local;
-                if (attr.uri === DEFAULT_XMLNS_X) {
-                    if (tagName === "Name")
-                        return this.$$onName(attr.value);
-                    if (tagName === "Key")
-                        return this.$$onKey(attr.value);
-                }
-                var type = null;
-                var name = tagName;
-                var ind = tagName.indexOf('.');
-                if (ind > -1) {
-                    type = this.$$onResolveType(attr.uri, name.substr(0, ind));
-                    name = name.substr(ind + 1);
-                }
-                this.$$onPropertyStart(type, name);
-                this.$$onObject(attr.value);
-                this.$$onObjectEnd(attr.value);
-                this.$$onPropertyEnd(type, name);
-            };
+
             parser.ontext = (text) => {
                 if (curTag)
                     curTag.lastText = text;
@@ -193,6 +170,34 @@ module sax.xaml {
                 .onPropertyStart(this.$$onPropertyStart)
                 .onPropertyEnd(this.$$onPropertyEnd)
                 .onError(this.$$onError);
+        }
+
+        private $$handleAttribute (attr: sax.IAttribute) {
+            // NOTE:
+            //  ... [ns:]Type.Name="..."
+            //  ... x:Name="..."
+            //  ... x:Key="..."
+            //  ... Name="..."
+            if (attr.prefix === "xmlns")
+                return;
+            var tagName = attr.local;
+            if (attr.uri === DEFAULT_XMLNS_X) {
+                if (tagName === "Name")
+                    return this.$$onName(attr.value);
+                if (tagName === "Key")
+                    return this.$$onKey(attr.value);
+            }
+            var type = null;
+            var name = tagName;
+            var ind = tagName.indexOf('.');
+            if (ind > -1) {
+                type = this.$$onResolveType(attr.uri, name.substr(0, ind));
+                name = name.substr(ind + 1);
+            }
+            this.$$onPropertyStart(type, name);
+            this.$$onObject(attr.value);
+            this.$$onObjectEnd(attr.value);
+            this.$$onPropertyEnd(type, name);
         }
 
         onResolveType (cb?: events.IResolveType): Parser {
