@@ -1,11 +1,11 @@
 sax-xaml Events
 ========
 
-* `onObjectStart`
-* `onObjectEnd`
-* `onName`
-* `onKey`
-* `onPropertyStart`
-* `onPropertyEnd`
-* `onAttachedPropertyStart`
-* `onAttachedPropertyEnd`
+* `onResolveType`: `events.IResolveType`;
+* `onObjectResolve`: `events.IObjectResolve`;
+* `onObject`: `events.IObject`;
+* `onContentObject`: `events.IObject`;
+* `onName`: `events.IName`;
+* `onKey`: `events.IKey`;
+* `onPropertyStart`: `events.IPropertyStart`;
+* `onPropertyEnd`: `events.IPropertyEnd`;

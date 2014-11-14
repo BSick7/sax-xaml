@@ -80,7 +80,7 @@ module.exports = function (grunt) {
             }
         },
         qunit: {
-            all: ['<%= dirs.test.root %>/**/*.html']
+            all: ['<%= dirs.test.root %>/*.html']
         },
         version: {
             bump: {
