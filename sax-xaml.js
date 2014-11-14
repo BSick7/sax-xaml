@@ -14,8 +14,6 @@ var sax;
         var Parser = (function () {
             function Parser() {
                 this.$$onEnd = null;
-                this.$$immediateProp = false;
-                this.$$lastText = null;
             }
             Object.defineProperty(Parser.prototype, "info", {
                 get: function () {
@@ -40,47 +38,58 @@ var sax;
                 });
                 var objs = [];
                 var tags = [];
+                var immediateProp = false;
+                var lastText = null;
+                var curTag;
                 parser.onopentag = function (node) {
                     var tagName = node.local;
                     var ind = tagName.indexOf('.');
                     if (ind > -1) {
                         var type = _this.$$onResolveType(node.uri, tagName.substr(0, ind));
                         var name = tagName.substr(ind + 1);
-                        tags.push({
+                        tags.push(curTag = {
                             prop: true,
                             type: type,
-                            name: name
+                            name: name,
+                            ignoreText: false
                         });
                         _this.$$onPropertyStart(type, name);
-                        _this.$$immediateProp = true;
+                        immediateProp = true;
                     } else {
+                        if (!immediateProp && curTag)
+                            curTag.ignoreText = true;
+
                         var type = _this.$$onResolveType(node.uri, tagName);
-                        tags.push({
+                        tags.push(curTag = {
                             prop: false,
                             type: type,
-                            name: tagName
+                            name: tagName,
+                            ignoreText: false
                         });
                         _this.curObject = _this.$$onObjectResolve(type);
                         objs.push(_this.curObject);
-                        if (_this.$$immediateProp)
+                        if (immediateProp) {
                             _this.$$onObject(_this.curObject);
-                        else
+                        } else {
                             _this.$$onContentObject(_this.curObject);
+                        }
                     }
                 };
                 parser.onclosetag = function (tagName) {
-                    if (_this.$$lastText) {
-                        _this.$$onContentText(_this.$$lastText);
-                        _this.$$lastText = null;
+                    if (lastText) {
+                        if (!curTag.ignoreText)
+                            _this.$$onContentText(lastText);
+                        lastText = null;
                     }
                     var tag = tags.pop();
                     if (tag.prop) {
-                        _this.$$immediateProp = false;
+                        immediateProp = false;
                         _this.$$onPropertyEnd(tag.type, tag.name);
                     } else {
                         var obj = objs.pop();
                         _this.curObject = objs[objs.length - 1];
                     }
+                    curTag = tags[tags.length - 1];
                 };
                 parser.onattribute = function (attr) {
                     if (attr.prefix === "xmlns")
@@ -106,7 +115,7 @@ var sax;
                     }
                 };
                 parser.ontext = function (text) {
-                    _this.$$lastText = text;
+                    lastText = text;
                 };
                 parser.onerror = function (e) {
                     if (_this.$$onError(e))

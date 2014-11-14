@@ -52,8 +52,6 @@ declare module sax.xaml {
         private $$onPropertyEnd;
         private $$onError;
         private $$onEnd;
-        private $$immediateProp;
-        private $$lastText;
         public info : IParseInfo;
         public parse(xml: string): Parser;
         private $$ensure();

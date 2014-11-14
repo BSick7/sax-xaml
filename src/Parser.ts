@@ -38,6 +38,13 @@ module sax.xaml {
         position: number;
     }
 
+    interface ITag {
+        prop: boolean;
+        type: any;
+        name: string;
+        ignoreText: boolean;
+    }
+
     export class Parser {
         private $$parser: sax.SAXParser;
 
@@ -54,9 +61,6 @@ module sax.xaml {
         private $$onPropertyEnd: events.IPropertyEnd;
         private $$onError: events.IError;
         private $$onEnd: () => any = null;
-
-        private $$immediateProp = false;
-        private $$lastText = null;
 
         get info (): IParseInfo {
             var p = this.$$parser;
@@ -75,7 +79,10 @@ module sax.xaml {
                 position: true
             });
             var objs = [];
-            var tags = [];
+            var tags: ITag[] = [];
+            var immediateProp = false;
+            var lastText = null;
+            var curTag: ITag;
             parser.onopentag = (node: sax.INode) => {
                 // NOTE:
                 //  <[ns:]Type.Name>
@@ -85,44 +92,52 @@ module sax.xaml {
                 if (ind > -1) {
                     var type = this.$$onResolveType(node.uri, tagName.substr(0, ind));
                     var name = tagName.substr(ind + 1);
-                    tags.push({
+                    tags.push(curTag = {
                         prop: true,
                         type: type,
-                        name: name
+                        name: name,
+                        ignoreText: false
                     });
                     this.$$onPropertyStart(type, name);
-                    this.$$immediateProp = true;
+                    immediateProp = true;
                 } else {
+                    if (!immediateProp && curTag)
+                        curTag.ignoreText = true;
+
                     var type = this.$$onResolveType(node.uri, tagName);
-                    tags.push({
+                    tags.push(curTag = {
                         prop: false,
                         type: type,
-                        name: tagName
+                        name: tagName,
+                        ignoreText: false
                     });
                     this.curObject = this.$$onObjectResolve(type);
                     objs.push(this.curObject);
-                    if (this.$$immediateProp)
+                    if (immediateProp) {
                         this.$$onObject(this.curObject);
-                    else
+                    } else {
                         this.$$onContentObject(this.curObject);
+                    }
                 }
             };
             parser.onclosetag = (tagName: string) => {
                 // NOTE:
                 //  </[ns:]Type.Name>
                 //  </[ns:]Type>
-                if (this.$$lastText) {
-                    this.$$onContentText(this.$$lastText);
-                    this.$$lastText = null;
+                if (lastText) {
+                    if (!curTag.ignoreText)
+                        this.$$onContentText(lastText);
+                    lastText = null;
                 }
                 var tag = tags.pop();
                 if (tag.prop) {
-                    this.$$immediateProp = false;
+                    immediateProp = false;
                     this.$$onPropertyEnd(tag.type, tag.name);
                 } else {
                     var obj = objs.pop();
                     this.curObject = objs[objs.length - 1];
                 }
+                curTag = tags[tags.length - 1];
             };
             parser.onattribute = (attr: sax.IAttribute) => {
                 // NOTE:
@@ -153,7 +168,7 @@ module sax.xaml {
                 }
             };
             parser.ontext = (text) => {
-                this.$$lastText = text;
+                lastText = text;
             };
             parser.onerror = (e) => {
                 if (this.$$onError(e))
