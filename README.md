@@ -3,7 +3,7 @@
 This library is meant to abstract XML parsing by delivering only XAML specific events.
 This library relies on [sax-js](https://github.com/isaacs/sax-js) to parse XML.
 
-## Usage
+### Usage
 
 ```
 var parser = new sax.xaml.Parser()
@@ -32,13 +32,16 @@ var parser = new sax.xaml.Parser()
     }).parse(doc);
 ```
 
-## Notes
+### Notes
 
-At any point during parsing, you can acquire parse information via `parser.info` that returns the following:
+The parser exposes the following.
 ```
-{
-    line: number;
-    column: number;
-    position: number;
+class Parser {
+    curObject: any; // Current Object being processed
+    info : {
+        line: number; // Current Parse line number
+        column: number; // Current Parse column number
+        position: number; // Current Parse position
+    };
 }
 ```
