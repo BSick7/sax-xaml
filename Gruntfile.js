@@ -4,6 +4,7 @@ var version = require('./build/version'),
 module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-typescript');
     grunt.loadNpmTasks('grunt-contrib-clean');
+    grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-qunit');
     grunt.loadNpmTasks('grunt-contrib-symlink');
     grunt.loadNpmTasks('grunt-contrib-uglify');
@@ -39,12 +40,10 @@ module.exports = function (grunt) {
             },
             test: {
                 files: [
-                    { src: './lib/qunit', dest: '<%= dirs.test.lib %>/qunit' },
-                    { src: './lib/sax-js', dest: '<%= dirs.test.lib %>/sax-js' },
-                    { src: './<%= meta.name %>.js', dest: '<%= dirs.test.lib %>/<%= meta.name %>/<%= meta.name %>.js' },
-                    { src: './<%= meta.name %>.d.ts', dest: '<%= dirs.test.lib %>/<%= meta.name %>/<%= meta.name %>.d.ts' },
-                    { src: './<%= meta.name %>.js.map', dest: '<%= dirs.test.lib %>/<%= meta.name %>/<%= meta.name %>.js.map' },
-                    { src: './src', dest: '<%= dirs.test.lib %>/<%= meta.name %>/src' }
+                    {src: './lib/qunit', dest: '<%= dirs.test.lib %>/qunit'},
+                    {src: './lib/sax-js', dest: '<%= dirs.test.lib %>/sax-js'},
+                    {src: './dist', dest: '<%= dirs.test.lib %>/<%= meta.name %>/dist'},
+                    {src: './src', dest: '<%= dirs.test.lib %>/<%= meta.name %>/src'}
                 ]
             }
         },
@@ -56,7 +55,7 @@ module.exports = function (grunt) {
                     './src/*.ts',
                     './src/**/*.ts'
                 ],
-                dest: '<%= meta.name %>.js',
+                dest: 'dist/<%= meta.name %>.js',
                 options: {
                     target: 'es5',
                     declaration: true,
@@ -68,7 +67,7 @@ module.exports = function (grunt) {
                     'typings/*.d.ts',
                     '<%= dirs.test.root %>/**/*.ts',
                     '!<%= dirs.test.lib %>/**/*.ts',
-                    'sax-xaml.d.ts'
+                    'dist/sax-xaml.d.ts'
                 ],
                 dest: '<%= dirs.test.build %>',
                 options: {
@@ -82,9 +81,31 @@ module.exports = function (grunt) {
         qunit: {
             all: ['<%= dirs.test.root %>/*.html']
         },
-        version: {
-            bump: {
+        concat: {
+            options: {
+                sourceMap: true,
+                sourceMapStyle: 'link'
             },
+            dist: {
+                src: ['lib/sax-js/lib/sax.js', 'dist/sax-xaml.js'],
+                dest: 'dist/sax-xaml.concat.js'
+            }
+        },
+        uglify: {
+            options: {
+                sourceMap: function (path) {
+                    return path.replace(/(.*).min.js/, "$1.js.map");
+                },
+                sourceMapIn: 'dist/sax-xaml.concat.js.map',
+                sourceMapIncludeSources: true
+            },
+            dist: {
+                src: ['dist/sax-xaml.concat.js'],
+                dest: 'dist/sax-xaml.min.js'
+            }
+        },
+        version: {
+            bump: {},
             apply: {
                 src: './build/_VersionTemplate._ts',
                 dest: './src/_Version.ts'
@@ -97,7 +118,7 @@ module.exports = function (grunt) {
     setup(grunt);
     version(grunt);
     grunt.registerTask('lib:reset', ['clean', 'setup', 'symlink:test']);
-    grunt.registerTask('dist:upbuild', ['version:bump', 'version:apply', 'typescript:build']);
-    grunt.registerTask('dist:upminor', ['version:bump:minor', 'version:apply', 'typescript:build']);
-    grunt.registerTask('dist:upmajor', ['version:bump:major', 'version:apply', 'typescript:build']);
+    grunt.registerTask('dist:upbuild', ['version:bump', 'version:apply', 'typescript:build', 'concat:dist', 'uglify:dist']);
+    grunt.registerTask('dist:upminor', ['version:bump:minor', 'version:apply', 'typescript:build', 'concat:dist', 'uglify:dist']);
+    grunt.registerTask('dist:upmajor', ['version:bump:major', 'version:apply', 'typescript:build', 'concat:dist', 'uglify:dist']);
 };

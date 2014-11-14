@@ -1,5 +1,5 @@
 declare module sax.xaml {
-    var Version: string;
+    var version: string;
 }
 declare module sax.xaml {
     var DEFAULT_XMLNS: string;

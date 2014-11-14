@@ -1,7 +1,7 @@
 var sax;
 (function (sax) {
     (function (xaml) {
-        xaml.Version = '0.1.0';
+        xaml.version = '0.1.0';
     })(sax.xaml || (sax.xaml = {}));
     var xaml = sax.xaml;
 })(sax || (sax = {}));

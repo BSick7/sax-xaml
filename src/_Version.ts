@@ -1,3 +1,3 @@
 module sax.xaml {
-    export var Version = '0.1.0';
+    export var version = '0.1.0';
 }
