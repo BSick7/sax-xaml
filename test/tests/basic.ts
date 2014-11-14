@@ -15,34 +15,72 @@ module sax.xaml.tests.basic {
         });
     });
 
-    QUnit.asyncTest("Basic test", () => {
+    QUnit.asyncTest("Basic", () => {
         getDoc("docs/basic.xml", (doc) => {
-            var parser = new Parser()
-                .onResolveType((xmlns, name) => {
-                    console.log("Resolve Type", xmlns, name);
-                    var func = new Function("return function " + name + "() { }");
-                    return func();
-                }).onObjectResolve((type) => {
-                    console.log("Resolve Object", type);
-                    return new type();
-                }).onObject((obj) => {
-                    console.log("Object", obj);
-                }).onContentObject((obj) => {
-                    console.log("Content Object", obj);
-                }).onContentText((text) => {
-                    console.log("Content Text", text);
-                }).onName((name) => {
-                    console.log("x:Name", name);
-                }).onKey((key) => {
-                    console.log("x:Key", key);
-                }).onPropertyStart((ownerType, propName) => {
-                    console.log("Property Start", ownerType, propName);
-                }).onPropertyEnd((ownerType, propName) => {
-                    console.log("Property End", ownerType, propName);
-                }).onEnd(() => {
-                    QUnit.start();
-                    ok(true);
-                }).parse(doc);
+            mock.parse(doc, (cmds) => {
+                QUnit.start();
+
+                //Application
+                var i = 0;
+                deepEqual(cmds[i], {
+                    cmd: 'rt',
+                    xmlns: sax.xaml.DEFAULT_XMLNS,
+                    name: 'Application',
+                    type: cmds[i].type
+                }, 'rt Application');
+                i++;
+                var app = cmds[i].obj;
+                deepEqual(cmds[i], {
+                    cmd: 'or',
+                    type: cmds[i - 1].type,
+                    obj: app
+                }, 'or Application');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'co',
+                    obj: app
+                }, 'co Application');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'name',
+                    name: 'LayoutRoot'
+                }, 'name Application');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'rt',
+                    xmlns: sax.xaml.DEFAULT_XMLNS,
+                    name: 'Button',
+                    type: cmds[i].type
+                }, 'rt Button');
+                i++;
+                var btn = cmds[i].obj;
+                deepEqual(cmds[i], {
+                    cmd: 'or',
+                    type: cmds[i - 1].type,
+                    obj: btn
+                }, 'or Button');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'co',
+                    obj: btn
+                }, 'co Button');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'ct',
+                    text: 'Content'
+                }, 'ct Content');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'oe',
+                    obj: btn
+                }, 'oe Button');
+                i++;
+                deepEqual(cmds[i], {
+                    cmd: 'oe',
+                    obj: app
+                }, 'oe Application');
+                strictEqual(cmds.length, i + 1);
+            });
         }, (err) => {
             QUnit.start();
             ok(false, err.message);

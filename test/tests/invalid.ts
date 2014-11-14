@@ -1,4 +1,4 @@
-module sax.xaml.tests.basic {
+module sax.xaml.tests.invalid {
     QUnit.module('Invalid Tests');
 
     QUnit.asyncTest("Invalid XML", () => {

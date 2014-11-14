@@ -39,7 +39,6 @@ var sax;
                 var objs = [];
                 var tags = [];
                 var immediateProp = false;
-                var lastText = null;
                 var curTag;
                 parser.onopentag = function (node) {
                     var tagName = node.local;
@@ -51,7 +50,8 @@ var sax;
                             prop: true,
                             type: type,
                             name: name,
-                            ignoreText: false
+                            ignoreText: false,
+                            lastText: null
                         });
                         _this.$$onPropertyStart(type, name);
                         immediateProp = true;
@@ -64,7 +64,8 @@ var sax;
                             prop: false,
                             type: type,
                             name: tagName,
-                            ignoreText: false
+                            ignoreText: false,
+                            lastText: null
                         });
                         _this.curObject = _this.$$onObjectResolve(type);
                         objs.push(_this.curObject);
@@ -76,10 +77,8 @@ var sax;
                     }
                 };
                 parser.onclosetag = function (tagName) {
-                    if (lastText) {
-                        if (!curTag.ignoreText)
-                            _this.$$onContentText(lastText);
-                        lastText = null;
+                    if (curTag.lastText && !curTag.ignoreText) {
+                        _this.$$onContentText(curTag.lastText);
                     }
                     var tag = tags.pop();
                     if (tag.prop) {
@@ -87,6 +86,7 @@ var sax;
                         _this.$$onPropertyEnd(tag.type, tag.name);
                     } else {
                         var obj = objs.pop();
+                        _this.$$onObjectEnd(obj);
                         _this.curObject = objs[objs.length - 1];
                     }
                     curTag = tags[tags.length - 1];
@@ -101,21 +101,21 @@ var sax;
                         if (tagName === "Key")
                             return _this.$$onKey(attr.value);
                     }
+                    var type = null;
+                    var name = tagName;
                     var ind = tagName.indexOf('.');
                     if (ind > -1) {
-                        var type = _this.$$onResolveType(attr.uri, tagName.substr(0, ind));
-                        var name = tagName.substr(ind + 1);
-                        _this.$$onPropertyStart(type, name);
-                        _this.$$onObject(attr.value);
-                        _this.$$onPropertyEnd(type, name);
-                    } else {
-                        _this.$$onPropertyStart(null, tagName);
-                        _this.$$onObject(attr.value);
-                        _this.$$onPropertyEnd(null, tagName);
+                        type = _this.$$onResolveType(attr.uri, name.substr(0, ind));
+                        name = name.substr(ind + 1);
                     }
+                    _this.$$onPropertyStart(type, name);
+                    _this.$$onObject(attr.value);
+                    _this.$$onObjectEnd(attr.value);
+                    _this.$$onPropertyEnd(type, name);
                 };
                 parser.ontext = function (text) {
-                    lastText = text;
+                    if (curTag)
+                        curTag.lastText = text;
                 };
                 parser.onerror = function (e) {
                     if (_this.$$onError(e))
@@ -129,7 +129,7 @@ var sax;
             };
 
             Parser.prototype.$$ensure = function () {
-                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onContentObject(this.$$onContentObject).onContentText(this.$$onContentText).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
+                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onObjectEnd(this.$$onObjectEnd).onContentObject(this.$$onContentObject).onContentText(this.$$onContentText).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
             };
 
             Parser.prototype.onResolveType = function (cb) {
@@ -148,6 +148,12 @@ var sax;
 
             Parser.prototype.onObject = function (cb) {
                 this.$$onObject = cb || (function (obj) {
+                });
+                return this;
+            };
+
+            Parser.prototype.onObjectEnd = function (cb) {
+                this.$$onObjectEnd = cb || (function (obj) {
                 });
                 return this;
             };

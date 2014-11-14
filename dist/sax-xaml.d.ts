@@ -44,6 +44,7 @@ declare module sax.xaml {
         private $$onResolveType;
         private $$onObjectResolve;
         private $$onObject;
+        private $$onObjectEnd;
         private $$onContentObject;
         private $$onContentText;
         private $$onName;
@@ -58,6 +59,7 @@ declare module sax.xaml {
         public onResolveType(cb?: events.IResolveType): Parser;
         public onObjectResolve(cb?: events.IObjectResolve): Parser;
         public onObject(cb?: events.IObject): Parser;
+        public onObjectEnd(cb?: events.IObject): Parser;
         public onContentObject(cb?: events.IObject): Parser;
         public onContentText(cb?: events.IObject): Parser;
         public onName(cb?: events.IName): Parser;

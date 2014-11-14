@@ -43,6 +43,7 @@ module sax.xaml {
         type: any;
         name: string;
         ignoreText: boolean;
+        lastText: string;
     }
 
     export class Parser {
@@ -53,6 +54,7 @@ module sax.xaml {
         private $$onResolveType: events.IResolveType;
         private $$onObjectResolve: events.IObjectResolve;
         private $$onObject: events.IObject;
+        private $$onObjectEnd: events.IObject;
         private $$onContentObject: events.IObject;
         private $$onContentText: events.IText;
         private $$onName: events.IName;
@@ -81,7 +83,6 @@ module sax.xaml {
             var objs = [];
             var tags: ITag[] = [];
             var immediateProp = false;
-            var lastText = null;
             var curTag: ITag;
             parser.onopentag = (node: sax.INode) => {
                 // NOTE:
@@ -96,7 +97,8 @@ module sax.xaml {
                         prop: true,
                         type: type,
                         name: name,
-                        ignoreText: false
+                        ignoreText: false,
+                        lastText: null
                     });
                     this.$$onPropertyStart(type, name);
                     immediateProp = true;
@@ -109,7 +111,8 @@ module sax.xaml {
                         prop: false,
                         type: type,
                         name: tagName,
-                        ignoreText: false
+                        ignoreText: false,
+                        lastText: null
                     });
                     this.curObject = this.$$onObjectResolve(type);
                     objs.push(this.curObject);
@@ -124,10 +127,8 @@ module sax.xaml {
                 // NOTE:
                 //  </[ns:]Type.Name>
                 //  </[ns:]Type>
-                if (lastText) {
-                    if (!curTag.ignoreText)
-                        this.$$onContentText(lastText);
-                    lastText = null;
+                if (curTag.lastText && !curTag.ignoreText) {
+                    this.$$onContentText(curTag.lastText);
                 }
                 var tag = tags.pop();
                 if (tag.prop) {
@@ -135,6 +136,7 @@ module sax.xaml {
                     this.$$onPropertyEnd(tag.type, tag.name);
                 } else {
                     var obj = objs.pop();
+                    this.$$onObjectEnd(obj);
                     this.curObject = objs[objs.length - 1];
                 }
                 curTag = tags[tags.length - 1];
@@ -154,21 +156,21 @@ module sax.xaml {
                     if (tagName === "Key")
                         return this.$$onKey(attr.value);
                 }
+                var type = null;
+                var name = tagName;
                 var ind = tagName.indexOf('.');
                 if (ind > -1) {
-                    var type = this.$$onResolveType(attr.uri, tagName.substr(0, ind));
-                    var name = tagName.substr(ind + 1);
-                    this.$$onPropertyStart(type, name);
-                    this.$$onObject(attr.value);
-                    this.$$onPropertyEnd(type, name);
-                } else {
-                    this.$$onPropertyStart(null, tagName);
-                    this.$$onObject(attr.value);
-                    this.$$onPropertyEnd(null, tagName);
+                    type = this.$$onResolveType(attr.uri, name.substr(0, ind));
+                    name = name.substr(ind + 1);
                 }
+                this.$$onPropertyStart(type, name);
+                this.$$onObject(attr.value);
+                this.$$onObjectEnd(attr.value);
+                this.$$onPropertyEnd(type, name);
             };
             parser.ontext = (text) => {
-                lastText = text;
+                if (curTag)
+                    curTag.lastText = text;
             };
             parser.onerror = (e) => {
                 if (this.$$onError(e))
@@ -183,6 +185,7 @@ module sax.xaml {
             this.onResolveType(this.$$onResolveType)
                 .onObjectResolve(this.$$onObjectResolve)
                 .onObject(this.$$onObject)
+                .onObjectEnd(this.$$onObjectEnd)
                 .onContentObject(this.$$onContentObject)
                 .onContentText(this.$$onContentText)
                 .onName(this.$$onName)
@@ -204,6 +207,12 @@ module sax.xaml {
 
         onObject (cb?: events.IObject): Parser {
             this.$$onObject = cb || ((obj) => {
+            });
+            return this;
+        }
+
+        onObjectEnd (cb?: events.IObject): Parser {
+            this.$$onObjectEnd = cb || ((obj) => {
             });
             return this;
         }

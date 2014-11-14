@@ -18,4 +18,74 @@ module sax.xaml.tests {
         xhr.open("GET", url, true);
         xhr.send();
     }
+
+    export module mock {
+        export function parse (doc: string, cb: (cmds: any[]) => any) {
+            var cmds = [];
+            var parser = new Parser()
+                .onResolveType((xmlns, name) => {
+                    var func = new Function("return function " + name + "() { }");
+                    var type = func();
+                    cmds.push({
+                        cmd: 'rt',
+                        xmlns: xmlns,
+                        name: name,
+                        type: type
+                    });
+                    return type;
+                }).onObjectResolve((type) => {
+                    var obj = new type();
+                    cmds.push({
+                        cmd: 'or',
+                        type: type,
+                        obj: obj
+                    });
+                    return obj;
+                }).onObject((obj) => {
+                    cmds.push({
+                        cmd: 'o',
+                        obj: obj
+                    });
+                }).onObjectEnd((obj) => {
+                    cmds.push({
+                        cmd: 'oe',
+                        obj: obj
+                    });
+                }).onContentObject((obj) => {
+                    cmds.push({
+                        cmd: 'co',
+                        obj: obj
+                    });
+                }).onContentText((text) => {
+                    cmds.push({
+                        cmd: 'ct',
+                        text: text
+                    });
+                }).onName((name) => {
+                    cmds.push({
+                        cmd: 'name',
+                        name: name
+                    });
+                }).onKey((key) => {
+                    cmds.push({
+                        cmd: 'key',
+                        name: key
+                    });
+                }).onPropertyStart((ownerType, propName) => {
+                    cmds.push({
+                        cmd: 'ps',
+                        ownerType: ownerType,
+                        propName: propName
+                    });
+                }).onPropertyEnd((ownerType, propName) => {
+                    cmds.push({
+                        cmd: 'pe',
+                        ownerType: ownerType,
+                        propName: propName
+                    });
+                }).onEnd(() => {
+                    cb(cmds);
+                }).parse(doc);
+        }
+    }
 }
