@@ -3,7 +3,7 @@
 This library is meant to abstract the XML parser by delivering only XAML specific events.
 This library relies on [sax-js](https://github.com/isaacs/sax-js) to parse XML.
 
-## USAGE
+## Usage
 
 ```
 var parser = new sax.xaml.Parser()
