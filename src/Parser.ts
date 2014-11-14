@@ -27,40 +27,26 @@ module sax.xaml {
     }
 
     export class Parser {
-        onResolveType: events.IResolveType;
-        onObjectResolve: events.IObjectResolve;
-        onObject: events.IObject;
-        onContentObject: events.IObject;
-        onName: events.IName;
-        onKey: events.IKey;
-        onPropertyStart: events.IPropertyStart;
-        onPropertyEnd: events.IPropertyEnd;
-
         private $$parser: sax.SAXParser;
 
         curObject: any;
+
+        private $$onResolveType: events.IResolveType;
+        private $$onObjectResolve: events.IObjectResolve;
+        private $$onObject: events.IObject;
+        private $$onContentObject: events.IObject;
+        private $$onName: events.IName;
+        private $$onKey: events.IKey;
+        private $$onPropertyStart: events.IPropertyStart;
+        private $$onPropertyEnd: events.IPropertyEnd;
+        private $$onEnd: () => any = null;
+
         private $$immediateProp = false;
         private $$lastText = null;
 
-        listen (onResolveType: events.IResolveType,
-                onObjectResolve: events.IObjectResolve,
-                onObject: events.IObject,
-                onContentObject: events.IObject,
-                onName: events.IName,
-                onKey: events.IKey,
-                onPropertyStart: events.IPropertyStart,
-                onPropertyEnd: events.IPropertyEnd) {
-            this.onResolveType = onResolveType;
-            this.onObjectResolve = onObjectResolve;
-            this.onObject = onObject;
-            this.onContentObject = onContentObject;
-            this.onName = onName;
-            this.onKey = onKey;
-            this.onPropertyStart = onPropertyStart;
-            this.onPropertyEnd = onPropertyEnd;
-        }
+        parse (xml: string): Parser {
+            this.$$ensure();
 
-        parse (xml: string) {
             var parser = this.$$parser = sax.parser(true, {
                 xmlns: true,
                 position: true
@@ -74,28 +60,28 @@ module sax.xaml {
                 var tagName = node.local;
                 var ind = tagName.indexOf('.');
                 if (ind > -1) {
-                    var type = this.onResolveType(node.uri, tagName.substr(0, ind));
+                    var type = this.$$onResolveType(node.uri, tagName.substr(0, ind));
                     var name = tagName.substr(ind + 1);
                     tags.push({
                         prop: true,
                         type: type,
                         name: name
                     });
-                    this.onPropertyStart(type, name);
+                    this.$$onPropertyStart(type, name);
                     this.$$immediateProp = true;
                 } else {
-                    var type = this.onResolveType(node.uri, tagName);
+                    var type = this.$$onResolveType(node.uri, tagName);
                     tags.push({
                         prop: false,
                         type: type,
                         name: tagName
                     });
-                    this.curObject = this.onObjectResolve(type);
+                    this.curObject = this.$$onObjectResolve(type);
                     objs.push(this.curObject);
                     if (this.$$immediateProp)
-                        this.onObject(this.curObject);
+                        this.$$onObject(this.curObject);
                     else
-                        this.onContentObject(this.curObject);
+                        this.$$onContentObject(this.curObject);
                 }
             };
             parser.onclosetag = (tagName: string) => {
@@ -103,13 +89,13 @@ module sax.xaml {
                 //  </[ns:]Type.Name>
                 //  </[ns:]Type>
                 if (this.$$lastText) {
-                    this.onContentObject(this.$$lastText);
+                    this.$$onContentObject(this.$$lastText);
                     this.$$lastText = null;
                 }
                 var tag = tags.pop();
                 if (tag.prop) {
                     this.$$immediateProp = false;
-                    this.onPropertyEnd(tag.type, tag.name);
+                    this.$$onPropertyEnd(tag.type, tag.name);
                 } else {
                     var obj = objs.pop();
                     this.curObject = objs[objs.length - 1];
@@ -126,21 +112,21 @@ module sax.xaml {
                 var tagName = attr.local;
                 if (attr.uri === DEFAULT_XMLNS_X) {
                     if (tagName === "Name")
-                        return this.onName(attr.value);
+                        return this.$$onName(attr.value);
                     if (tagName === "Key")
-                        return this.onKey(attr.value);
+                        return this.$$onKey(attr.value);
                 }
                 var ind = tagName.indexOf('.');
                 if (ind > -1) {
-                    var type = this.onResolveType(attr.uri, tagName.substr(0, ind));
+                    var type = this.$$onResolveType(attr.uri, tagName.substr(0, ind));
                     var name = tagName.substr(ind + 1);
-                    this.onPropertyStart(type, name);
-                    this.onObject(attr.value);
-                    this.onPropertyEnd(type, name);
+                    this.$$onPropertyStart(type, name);
+                    this.$$onObject(attr.value);
+                    this.$$onPropertyEnd(type, name);
                 } else {
-                    this.onPropertyStart(null, tagName);
-                    this.onObject(attr.value);
-                    this.onPropertyEnd(null, tagName);
+                    this.$$onPropertyStart(null, tagName);
+                    this.$$onObject(attr.value);
+                    this.$$onPropertyEnd(null, tagName);
                 }
             };
             parser.ontext = (text) => {
@@ -148,9 +134,73 @@ module sax.xaml {
             };
             parser.onend = () => this.$$destroy();
             parser.write(xml).close();
+            return this;
+        }
+
+        private $$ensure () {
+            this.onResolveType(this.$$onResolveType)
+                .onObjectResolve(this.$$onObjectResolve)
+                .onObject(this.$$onObject)
+                .onContentObject(this.$$onContentObject)
+                .onName(this.$$onName)
+                .onKey(this.$$onKey)
+                .onPropertyStart(this.$$onPropertyStart)
+                .onPropertyEnd(this.$$onPropertyEnd);
+        }
+
+        onResolveType (cb?: events.IResolveType): Parser {
+            this.$$onResolveType = cb || ((xmlns, name) => Object);
+            return this;
+        }
+
+        onObjectResolve (cb?: events.IObjectResolve): Parser {
+            this.$$onObjectResolve = cb || ((type) => new type());
+            return this;
+        }
+
+        onObject (cb?: events.IObject): Parser {
+            this.$$onObject = cb || ((obj) => {
+            });
+            return this;
+        }
+
+        onContentObject (cb?: events.IObject): Parser {
+            this.$$onContentObject = cb || ((obj) => {
+            });
+            return this;
+        }
+
+        onName (cb?: events.IName): Parser {
+            this.$$onName = cb || ((name) => {
+            });
+            return this;
+        }
+
+        onKey (cb?: events.IKey): Parser {
+            this.$$onKey = cb || ((key) => {
+            });
+            return this;
+        }
+
+        onPropertyStart (cb?: events.IPropertyStart): Parser {
+            this.$$onPropertyStart = cb || ((ownerType, propName) => {
+            });
+            return this;
+        }
+
+        onPropertyEnd (cb?: events.IPropertyEnd): Parser {
+            this.$$onPropertyEnd = cb || ((ownerType, propName) => {
+            });
+            return this;
+        }
+
+        onEnd (cb: () => any): Parser {
+            this.$$onEnd = cb;
+            return this;
         }
 
         private $$destroy () {
+            this.$$onEnd && this.$$onEnd();
             this.$$parser = null;
         }
     }

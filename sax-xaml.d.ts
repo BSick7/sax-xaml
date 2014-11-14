@@ -28,20 +28,30 @@ declare module sax.xaml {
         }
     }
     class Parser {
-        public onResolveType: events.IResolveType;
-        public onObjectResolve: events.IObjectResolve;
-        public onObject: events.IObject;
-        public onContentObject: events.IObject;
-        public onName: events.IName;
-        public onKey: events.IKey;
-        public onPropertyStart: events.IPropertyStart;
-        public onPropertyEnd: events.IPropertyEnd;
         private $$parser;
         public curObject: any;
+        private $$onResolveType;
+        private $$onObjectResolve;
+        private $$onObject;
+        private $$onContentObject;
+        private $$onName;
+        private $$onKey;
+        private $$onPropertyStart;
+        private $$onPropertyEnd;
+        private $$onEnd;
         private $$immediateProp;
         private $$lastText;
-        public listen(onResolveType: events.IResolveType, onObjectResolve: events.IObjectResolve, onObject: events.IObject, onContentObject: events.IObject, onName: events.IName, onKey: events.IKey, onPropertyStart: events.IPropertyStart, onPropertyEnd: events.IPropertyEnd): void;
-        public parse(xml: string): void;
+        public parse(xml: string): Parser;
+        private $$ensure();
+        public onResolveType(cb?: events.IResolveType): Parser;
+        public onObjectResolve(cb?: events.IObjectResolve): Parser;
+        public onObject(cb?: events.IObject): Parser;
+        public onContentObject(cb?: events.IObject): Parser;
+        public onName(cb?: events.IName): Parser;
+        public onKey(cb?: events.IKey): Parser;
+        public onPropertyStart(cb?: events.IPropertyStart): Parser;
+        public onPropertyEnd(cb?: events.IPropertyEnd): Parser;
+        public onEnd(cb: () => any): Parser;
         private $$destroy();
     }
 }
