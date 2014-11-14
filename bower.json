@@ -26,6 +26,8 @@
     "sax-js": "git://github.com/isaacs/sax-js#~0.6.1"
   },
   "devDependencies": {
-    "qunit": "~1.15.0"
+    "qunit": "~1.15.0",
+    "requirejs": "~2.1.15",
+    "requirejs-text": "~2.0.12"
   }
 }

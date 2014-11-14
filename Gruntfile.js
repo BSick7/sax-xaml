@@ -1,33 +1,52 @@
 var version = require('./build/version'),
-    setup = require('./build/setup');
+    setup = require('./build/setup'),
+    path = require('path'),
+    connect_livereload = require('connect-livereload');
 
 module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-typescript');
     grunt.loadNpmTasks('grunt-contrib-clean');
+    grunt.loadNpmTasks('grunt-contrib-connect');
     grunt.loadNpmTasks('grunt-contrib-concat');
     grunt.loadNpmTasks('grunt-contrib-qunit');
     grunt.loadNpmTasks('grunt-contrib-symlink');
     grunt.loadNpmTasks('grunt-contrib-uglify');
+    grunt.loadNpmTasks('grunt-contrib-watch');
+    grunt.loadNpmTasks('grunt-open');
 
     var meta = {
         name: 'sax-xaml'
     };
-
+    var ports = {
+        stress: 9002,
+        livereload: 19002
+    };
     var dirs = {
         test: {
             root: 'test',
             build: 'test/.build',
             lib: 'test/lib'
+        },
+        stress: {
+            root: 'stress',
+            build: 'stress/.build',
+            lib: 'stress/lib'
         }
     };
 
+    function mount(connect, dir) {
+        return connect.static(path.resolve(dir));
+    }
+
     grunt.initConfig({
         meta: meta,
+        ports: ports,
         dirs: dirs,
         pkg: grunt.file.readJSON('./package.json'),
         clean: {
             bower: ['./lib'],
-            test: ['<%= dirs.test.lib %>']
+            test: ['<%= dirs.test.lib %>'],
+            stress: ['<%= dirs.stress.lib %>']
         },
         setup: {
             base: {
@@ -44,6 +63,15 @@ module.exports = function (grunt) {
                     {src: './lib/sax-js', dest: '<%= dirs.test.lib %>/sax-js'},
                     {src: './dist', dest: '<%= dirs.test.lib %>/<%= meta.name %>/dist'},
                     {src: './src', dest: '<%= dirs.test.lib %>/<%= meta.name %>/src'}
+                ]
+            },
+            stress: {
+                files:[
+                    {src: './lib/requirejs', dest: '<%= dirs.stress.lib %>/requirejs'},
+                    {src: './lib/requirejs-text', dest: '<%= dirs.stress.lib %>/requirejs-text'},
+                    {src: './lib/sax-js', dest: '<%= dirs.stress.lib %>/sax-js'},
+                    {src: './dist', dest: '<%= dirs.stress.lib %>/<%= meta.name %>/dist'},
+                    {src: './src', dest: '<%= dirs.stress.lib %>/<%= meta.name %>/src'}
                 ]
             }
         },
@@ -76,6 +104,21 @@ module.exports = function (grunt) {
                     module: 'amd',
                     sourceMap: true
                 }
+            },
+            stress: {
+                src: [
+                    'typings/*.d.ts',
+                    '<%= dirs.stress.root %>/**/*.ts',
+                    '!<%= dirs.stress.lib %>/**/*.ts',
+                    'dist/sax-xaml.d.ts'
+                ],
+                dest: '<%= dirs.stress.build %>',
+                options: {
+                    target: 'es5',
+                    basePath: '<%= dirs.stress.root %>',
+                    module: 'amd',
+                    sourceMap: true
+                }
             }
         },
         qunit: {
@@ -104,6 +147,54 @@ module.exports = function (grunt) {
                 dest: 'dist/sax-xaml.min.js'
             }
         },
+        connect: {
+            stress: {
+                options: {
+                    port: ports.stress,
+                    base: dirs.stress.root,
+                    middleware: function (connect) {
+                        return [
+                            connect_livereload({port: ports.livereload}),
+                            mount(connect, dirs.stress.build),
+                            mount(connect, dirs.stress.root)
+                        ];
+                    }
+                }
+            }
+        },
+        open: {
+            stress: {
+                path: 'http://localhost:<%= ports.stress %>/index.html'
+            }
+        },
+        watch: {
+            src: {
+                files: [
+                    'src/*.ts',
+                    'src/**/*.ts'
+                ],
+                tasks: ['typescript:build']
+            },
+            stressts: {
+                files: [
+                    '<%= dirs.stress.root %>/*.ts',
+                    '<%= dirs.stress.root %>/**/*.ts',
+                    '!<%= dirs.stress.root %>/lib/**/*.ts'
+                ],
+                tasks: ['typescript:stress']
+            },
+            stress: {
+                files: [
+                    '<%= dirs.stress.root %>/tests.json',
+                    '<%= dirs.stress.root %>/index.html',
+                    '<%= dirs.stress.build %>/**/*.js',
+                    'dist/sax-xaml.min.js'
+                ],
+                options: {
+                    livereload: ports.livereload
+                }
+            }
+        },
         version: {
             bump: {},
             apply: {
@@ -115,9 +206,10 @@ module.exports = function (grunt) {
 
     grunt.registerTask('default', ['typescript:build']);
     grunt.registerTask('test', ['typescript:build', 'typescript:test', 'qunit']);
+    grunt.registerTask('stress', ['typescript:build', 'typescript:stress', 'connect', 'open', 'watch']);
     setup(grunt);
     version(grunt);
-    grunt.registerTask('lib:reset', ['clean', 'setup', 'symlink:test']);
+    grunt.registerTask('lib:reset', ['clean', 'setup', 'symlink:test', 'symlink:stress']);
     grunt.registerTask('dist:upbuild', ['version:bump', 'version:apply', 'typescript:build', 'concat:dist', 'uglify:dist']);
     grunt.registerTask('dist:upminor', ['version:bump:minor', 'version:apply', 'typescript:build', 'concat:dist', 'uglify:dist']);
     grunt.registerTask('dist:upmajor', ['version:bump:major', 'version:apply', 'typescript:build', 'concat:dist', 'uglify:dist']);

@@ -1,0 +1,9 @@
+{
+  "tests": [
+    {
+      "name": "Metro Theme",
+      "test": "tests/Metro",
+      "runCount": 10
+    }
+  ]
+}
