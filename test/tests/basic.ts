@@ -2,7 +2,7 @@ module sax.xaml.tests.basic {
     QUnit.module('Basic Tests');
 
     QUnit.asyncTest("No callbacks - Graceful", () => {
-        getDoc("docs/test1.xml", (doc) => {
+        getDoc("docs/basic.xml", (doc) => {
             var parser = new Parser()
                 .onEnd(() => {
                     QUnit.start();
@@ -16,7 +16,7 @@ module sax.xaml.tests.basic {
     });
 
     QUnit.asyncTest("Basic test", () => {
-        getDoc("docs/test1.xml", (doc) => {
+        getDoc("docs/basic.xml", (doc) => {
             var parser = new Parser()
                 .onResolveType((xmlns, name) => {
                     console.log("Resolve Type", xmlns, name);
