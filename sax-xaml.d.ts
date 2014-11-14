@@ -14,6 +14,9 @@ declare module sax.xaml {
         interface IObject {
             (obj: any): any;
         }
+        interface IText {
+            (text: string): any;
+        }
         interface IName {
             (name: string): any;
         }
@@ -42,6 +45,7 @@ declare module sax.xaml {
         private $$onObjectResolve;
         private $$onObject;
         private $$onContentObject;
+        private $$onContentText;
         private $$onName;
         private $$onKey;
         private $$onPropertyStart;
@@ -57,6 +61,7 @@ declare module sax.xaml {
         public onObjectResolve(cb?: events.IObjectResolve): Parser;
         public onObject(cb?: events.IObject): Parser;
         public onContentObject(cb?: events.IObject): Parser;
+        public onContentText(cb?: events.IObject): Parser;
         public onName(cb?: events.IName): Parser;
         public onKey(cb?: events.IKey): Parser;
         public onPropertyStart(cb?: events.IPropertyStart): Parser;

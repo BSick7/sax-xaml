@@ -12,6 +12,9 @@ module sax.xaml {
         export interface IObject {
             (obj: any);
         }
+        export interface IText {
+            (text: string);
+        }
         export interface IName {
             (name: string);
         }
@@ -44,6 +47,7 @@ module sax.xaml {
         private $$onObjectResolve: events.IObjectResolve;
         private $$onObject: events.IObject;
         private $$onContentObject: events.IObject;
+        private $$onContentText: events.IText;
         private $$onName: events.IName;
         private $$onKey: events.IKey;
         private $$onPropertyStart: events.IPropertyStart;
@@ -108,7 +112,7 @@ module sax.xaml {
                 //  </[ns:]Type.Name>
                 //  </[ns:]Type>
                 if (this.$$lastText) {
-                    this.$$onContentObject(this.$$lastText);
+                    this.$$onContentText(this.$$lastText);
                     this.$$lastText = null;
                 }
                 var tag = tags.pop();
@@ -165,6 +169,7 @@ module sax.xaml {
                 .onObjectResolve(this.$$onObjectResolve)
                 .onObject(this.$$onObject)
                 .onContentObject(this.$$onContentObject)
+                .onContentText(this.$$onContentText)
                 .onName(this.$$onName)
                 .onKey(this.$$onKey)
                 .onPropertyStart(this.$$onPropertyStart)
@@ -190,6 +195,12 @@ module sax.xaml {
 
         onContentObject (cb?: events.IObject): Parser {
             this.$$onContentObject = cb || ((obj) => {
+            });
+            return this;
+        }
+
+        onContentText (cb?: events.IObject): Parser {
+            this.$$onContentText = cb || ((text) => {
             });
             return this;
         }

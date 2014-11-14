@@ -6,7 +6,7 @@ This library relies on [sax-js](https://github.com/isaacs/sax-js) to parse XML.
 ### Usage
 
 ```
-var parser = new sax.xaml.Parser()
+var parser = new Parser()
     .onResolveType((xmlns, name) => {
         console.log("Resolve Type", xmlns, name);
         var func = new Function("return function " + name + "() { }");
@@ -18,6 +18,8 @@ var parser = new sax.xaml.Parser()
         console.log("Object", obj);
     }).onContentObject((obj) => {
         console.log("Content Object", obj);
+    }).onContentText((text) => {
+        console.log("Content Text", text);
     }).onName((name) => {
         console.log("x:Name", name);
     }).onKey((key) => {

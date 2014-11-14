@@ -70,7 +70,7 @@ var sax;
                 };
                 parser.onclosetag = function (tagName) {
                     if (_this.$$lastText) {
-                        _this.$$onContentObject(_this.$$lastText);
+                        _this.$$onContentText(_this.$$lastText);
                         _this.$$lastText = null;
                     }
                     var tag = tags.pop();
@@ -120,7 +120,7 @@ var sax;
             };
 
             Parser.prototype.$$ensure = function () {
-                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onContentObject(this.$$onContentObject).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
+                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onContentObject(this.$$onContentObject).onContentText(this.$$onContentText).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
             };
 
             Parser.prototype.onResolveType = function (cb) {
@@ -145,6 +145,12 @@ var sax;
 
             Parser.prototype.onContentObject = function (cb) {
                 this.$$onContentObject = cb || (function (obj) {
+                });
+                return this;
+            };
+
+            Parser.prototype.onContentText = function (cb) {
+                this.$$onContentText = cb || (function (text) {
                 });
                 return this;
             };

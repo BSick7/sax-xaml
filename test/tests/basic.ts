@@ -29,6 +29,8 @@ module sax.xaml.tests.basic {
                     console.log("Object", obj);
                 }).onContentObject((obj) => {
                     console.log("Content Object", obj);
+                }).onContentText((text) => {
+                    console.log("Content Text", text);
                 }).onName((name) => {
                     console.log("x:Name", name);
                 }).onKey((key) => {
