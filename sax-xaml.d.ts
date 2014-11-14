@@ -1,7 +1,7 @@
-declare module saxxaml {
+declare module sax.xaml {
     var Version: string;
 }
-declare module saxxaml {
+declare module sax.xaml {
     var DEFAULT_XMLNS: string;
     var DEFAULT_XMLNS_X: string;
     module events {

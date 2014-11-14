@@ -1,4 +1,4 @@
-module saxxaml.tests {
+module sax.xaml.tests {
     QUnit.module('Test 1');
 
     function getDoc (url: string, cb: (doc: string) => any) {
@@ -17,7 +17,7 @@ module saxxaml.tests {
     QUnit.asyncTest("Basic test", () => {
         getDoc("docs/test1.xml", (doc) => {
             QUnit.start();
-            var parser = new saxxaml.Parser();
+            var parser = new Parser();
             parser.listen((xmlns, name) => {
                 console.log("Resolve Type", xmlns, name);
                 var func = new Function("return function " + name + "() { }");

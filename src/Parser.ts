@@ -1,4 +1,4 @@
-module saxxaml {
+module sax.xaml {
     export var DEFAULT_XMLNS = "http://schemas.wsick.com/fayde";
     export var DEFAULT_XMLNS_X = "http://schemas.wsick.com/fayde/x";
 
