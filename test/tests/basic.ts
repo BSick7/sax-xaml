@@ -1,19 +1,6 @@
 module sax.xaml.tests.basic {
     QUnit.module('Basic Tests');
 
-    function getDoc (url: string, cb: (doc: string) => any) {
-        var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = (ev) => {
-            if (xhr.readyState === 4) {
-                if (xhr.status !== 200)
-                    return cb("");
-                return cb(xhr.responseText)
-            }
-        };
-        xhr.open("GET", url, true);
-        xhr.send();
-    }
-
     QUnit.asyncTest("No callbacks - Graceful", () => {
         getDoc("docs/test1.xml", (doc) => {
             var parser = new Parser()
@@ -22,6 +9,9 @@ module sax.xaml.tests.basic {
                     ok(true);
                 })
                 .parse(doc);
+        }, (err) => {
+            QUnit.start();
+            ok(false, err.message);
         });
     });
 
@@ -51,6 +41,9 @@ module sax.xaml.tests.basic {
                     QUnit.start();
                     ok(true);
                 }).parse(doc);
+        }, (err) => {
+            QUnit.start();
+            ok(false, err.message);
         });
     });
 }

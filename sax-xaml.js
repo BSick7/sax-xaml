@@ -17,6 +17,19 @@ var sax;
                 this.$$immediateProp = false;
                 this.$$lastText = null;
             }
+            Object.defineProperty(Parser.prototype, "info", {
+                get: function () {
+                    var p = this.$$parser;
+                    return {
+                        line: p.line,
+                        column: p.column,
+                        position: p.position
+                    };
+                },
+                enumerable: true,
+                configurable: true
+            });
+
             Parser.prototype.parse = function (xml) {
                 var _this = this;
                 this.$$ensure();
@@ -95,6 +108,10 @@ var sax;
                 parser.ontext = function (text) {
                     _this.$$lastText = text;
                 };
+                parser.onerror = function (e) {
+                    if (_this.$$onError(e))
+                        parser.resume();
+                };
                 parser.onend = function () {
                     return _this.$$destroy();
                 };
@@ -103,7 +120,7 @@ var sax;
             };
 
             Parser.prototype.$$ensure = function () {
-                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onContentObject(this.$$onContentObject).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd);
+                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onContentObject(this.$$onContentObject).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
             };
 
             Parser.prototype.onResolveType = function (cb) {
@@ -152,6 +169,13 @@ var sax;
 
             Parser.prototype.onPropertyEnd = function (cb) {
                 this.$$onPropertyEnd = cb || (function (ownerType, propName) {
+                });
+                return this;
+            };
+
+            Parser.prototype.onError = function (cb) {
+                this.$$onError = cb || (function (e) {
+                    return true;
                 });
                 return this;
             };

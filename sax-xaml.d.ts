@@ -26,6 +26,14 @@ declare module sax.xaml {
         interface IPropertyEnd {
             (ownerType: any, propName: string): any;
         }
+        interface IError {
+            (e: Error): boolean;
+        }
+    }
+    interface IParseInfo {
+        line: number;
+        column: number;
+        position: number;
     }
     class Parser {
         private $$parser;
@@ -38,9 +46,11 @@ declare module sax.xaml {
         private $$onKey;
         private $$onPropertyStart;
         private $$onPropertyEnd;
+        private $$onError;
         private $$onEnd;
         private $$immediateProp;
         private $$lastText;
+        public info : IParseInfo;
         public parse(xml: string): Parser;
         private $$ensure();
         public onResolveType(cb?: events.IResolveType): Parser;
@@ -51,6 +61,7 @@ declare module sax.xaml {
         public onKey(cb?: events.IKey): Parser;
         public onPropertyStart(cb?: events.IPropertyStart): Parser;
         public onPropertyEnd(cb?: events.IPropertyEnd): Parser;
+        public onError(cb?: events.IError): Parser;
         public onEnd(cb: () => any): Parser;
         private $$destroy();
     }

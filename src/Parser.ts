@@ -24,6 +24,15 @@ module sax.xaml {
         export interface IPropertyEnd {
             (ownerType: any, propName: string);
         }
+        export interface IError {
+            (e: Error): boolean;
+        }
+    }
+
+    export interface IParseInfo {
+        line: number;
+        column: number;
+        position: number;
     }
 
     export class Parser {
@@ -39,10 +48,20 @@ module sax.xaml {
         private $$onKey: events.IKey;
         private $$onPropertyStart: events.IPropertyStart;
         private $$onPropertyEnd: events.IPropertyEnd;
+        private $$onError: events.IError;
         private $$onEnd: () => any = null;
 
         private $$immediateProp = false;
         private $$lastText = null;
+
+        get info (): IParseInfo {
+            var p = this.$$parser;
+            return {
+                line: p.line,
+                column: p.column,
+                position: p.position
+            };
+        }
 
         parse (xml: string): Parser {
             this.$$ensure();
@@ -132,6 +151,10 @@ module sax.xaml {
             parser.ontext = (text) => {
                 this.$$lastText = text;
             };
+            parser.onerror = (e) => {
+                if (this.$$onError(e))
+                    parser.resume();
+            };
             parser.onend = () => this.$$destroy();
             parser.write(xml).close();
             return this;
@@ -145,7 +168,8 @@ module sax.xaml {
                 .onName(this.$$onName)
                 .onKey(this.$$onKey)
                 .onPropertyStart(this.$$onPropertyStart)
-                .onPropertyEnd(this.$$onPropertyEnd);
+                .onPropertyEnd(this.$$onPropertyEnd)
+                .onError(this.$$onError);
         }
 
         onResolveType (cb?: events.IResolveType): Parser {
@@ -191,6 +215,11 @@ module sax.xaml {
         onPropertyEnd (cb?: events.IPropertyEnd): Parser {
             this.$$onPropertyEnd = cb || ((ownerType, propName) => {
             });
+            return this;
+        }
+
+        onError (cb?: events.IError): Parser {
+            this.$$onError = cb || ((e) => true);
             return this;
         }
 
