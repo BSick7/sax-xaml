@@ -7,7 +7,7 @@ declare module sax {
         position?: boolean;
     }
 
-    export function parser (strict: boolean = true, opt?: ISaxOpts): SAXParser;
+    export function parser (strict?: boolean, opt?: ISaxOpts): SAXParser;
 
     export interface IProcessingInstruction {
         name: string;
@@ -33,7 +33,7 @@ declare module sax {
     }
 
     export class SAXParser {
-        constructor (strict: boolean = true, opt?: ISaxOpts);
+        constructor (strict?: boolean, opt?: ISaxOpts);
         write (chunk: string): SAXParser;
         close (): SAXParser;
         resume ();

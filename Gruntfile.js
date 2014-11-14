@@ -40,6 +40,7 @@ module.exports = function (grunt) {
             test: {
                 files: [
                     { src: './lib/qunit', dest: '<%= dirs.test.lib %>/qunit' },
+                    { src: './lib/sax-js', dest: '<%= dirs.test.lib %>/sax-js' },
                     { src: './<%= meta.name %>.js', dest: '<%= dirs.test.lib %>/<%= meta.name %>/<%= meta.name %>.js' },
                     { src: './<%= meta.name %>.d.ts', dest: '<%= dirs.test.lib %>/<%= meta.name %>/<%= meta.name %>.d.ts' },
                     { src: './<%= meta.name %>.js.map', dest: '<%= dirs.test.lib %>/<%= meta.name %>/<%= meta.name %>.js.map' },
@@ -66,7 +67,8 @@ module.exports = function (grunt) {
                 src: [
                     'typings/*.d.ts',
                     '<%= dirs.test.root %>/**/*.ts',
-                    '!<%= dirs.test.lib %>/**/*.ts'
+                    '!<%= dirs.test.lib %>/**/*.ts',
+                    'sax-xaml.d.ts'
                 ],
                 dest: '<%= dirs.test.build %>',
                 options: {
