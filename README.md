@@ -32,8 +32,6 @@ var parser = new sax.xaml.Parser()
     }).parse(doc);
 ```
 
-### Notes
-
 The parser exposes the following.
 ```
 class Parser {
