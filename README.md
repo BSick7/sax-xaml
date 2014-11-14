@@ -1,6 +1,6 @@
 # sax-xaml
 
-This library is meant to abstract the XML parsing by delivering only XAML specific events.
+This library is meant to abstract XML parsing by delivering only XAML specific events.
 This library relies on [sax-js](https://github.com/isaacs/sax-js) to parse XML.
 
 ## Usage
@@ -30,4 +30,15 @@ var parser = new sax.xaml.Parser()
         QUnit.start();
         ok(true);
     }).parse(doc);
+```
+
+## Notes
+
+At any point during parsing, you can acquire parse information via `parser.info` that returns the following:
+```
+{
+    line: number;
+    column: number;
+    position: number;
+}
 ```
