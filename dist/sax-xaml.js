@@ -10,131 +10,119 @@ var sax;
     (function (xaml) {
         xaml.DEFAULT_XMLNS = "http://schemas.wsick.com/fayde";
         xaml.DEFAULT_XMLNS_X = "http://schemas.wsick.com/fayde/x";
+        var ERROR_XMLNS = "http://www.w3.org/1999/xhtml";
+        var ERROR_NAME = "parsererror";
+        var NS_XMLNS = "";
 
         var Parser = (function () {
             function Parser() {
                 this.$$onEnd = null;
+                this.$$objs = [];
             }
-            Object.defineProperty(Parser.prototype, "info", {
-                get: function () {
-                    var p = this.$$parser;
-                    return {
-                        line: p.line,
-                        column: p.column,
-                        position: p.position
-                    };
-                },
-                enumerable: true,
-                configurable: true
-            });
-
-            Parser.prototype.parse = function (xml) {
-                var _this = this;
+            Parser.prototype.parse = function (doc) {
                 this.$$ensure();
-
-                var parser = this.$$parser = sax.parser(true, {
-                    xmlns: true,
-                    position: true
-                });
-                var objs = [];
-                var tags = [];
-                var immediateProp = false;
-                var curTag;
-                parser.onopentag = function (node) {
-                    var tagName = node.local;
-                    var ind = tagName.indexOf('.');
-                    if (ind > -1) {
-                        var type = _this.$$onResolveType(node.uri, tagName.substr(0, ind));
-                        var name = tagName.substr(ind + 1);
-                        tags.push(curTag = {
-                            prop: true,
-                            type: type,
-                            name: name,
-                            ignoreText: false,
-                            lastText: null
-                        });
-                        _this.$$onPropertyStart(type, name);
-                        immediateProp = true;
-                    } else {
-                        if (!immediateProp && curTag)
-                            curTag.ignoreText = true;
-
-                        var type = _this.$$onResolveType(node.uri, tagName);
-                        tags.push(curTag = {
-                            prop: false,
-                            type: type,
-                            name: tagName,
-                            ignoreText: false,
-                            lastText: null
-                        });
-                        _this.curObject = _this.$$onObjectResolve(type);
-                        objs.push(_this.curObject);
-                        if (immediateProp) {
-                            _this.$$onObject(_this.curObject);
-                        } else {
-                            _this.$$onContentObject(_this.curObject);
-                        }
-                    }
-                    for (var key in node.attributes) {
-                        _this.$$handleAttribute(node.attributes[key]);
-                    }
-                };
-                parser.onclosetag = function (tagName) {
-                    if (curTag.lastText && !curTag.ignoreText) {
-                        _this.$$onContentText(curTag.lastText);
-                    }
-                    var tag = tags.pop();
-                    if (tag.prop) {
-                        immediateProp = false;
-                        _this.$$onPropertyEnd(tag.type, tag.name);
-                    } else {
-                        var obj = objs.pop();
-                        _this.$$onObjectEnd(obj);
-                        _this.curObject = objs[objs.length - 1];
-                    }
-                    curTag = tags[tags.length - 1];
-                };
-
-                parser.ontext = function (text) {
-                    if (curTag)
-                        curTag.lastText = text;
-                };
-                parser.onerror = function (e) {
-                    if (_this.$$onError(e))
-                        parser.resume();
-                };
-                parser.onend = function () {
-                    return _this.$$destroy();
-                };
-                parser.write(xml).close();
+                var el = doc.documentElement;
+                this.$$handleElement(el, true);
+                this.$$destroy();
                 return this;
             };
 
-            Parser.prototype.$$ensure = function () {
-                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onObjectEnd(this.$$onObjectEnd).onContentObject(this.$$onContentObject).onContentText(this.$$onContentText).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
+            Parser.prototype.$$handleElement = function (el, isContent) {
+                var name = el.localName;
+                var xmlns = el.namespaceURI;
+                if (this.$$tryHandleError(el, xmlns, name))
+                    return;
+                if (this.$$tryHandlePropertyTag(el, xmlns, name))
+                    return;
+
+                var type = this.$$onResolveType(xmlns, name);
+                var obj = this.curObject = this.$$onObjectResolve(type);
+                this.$$objs.push(obj);
+
+                if (isContent) {
+                    this.$$onContentObject(obj);
+                } else {
+                    this.$$onObject(obj);
+                }
+
+                for (var i = 0, attrs = el.attributes, len = attrs.length; i < len; i++) {
+                    this.$$handleAttribute(attrs[i]);
+                }
+
+                var child = el.firstElementChild;
+                var hasChildren = !!child;
+                while (child) {
+                    this.$$handleElement(child, true);
+                    child = child.nextElementSibling;
+                }
+
+                if (!hasChildren) {
+                    var text = el.textContent;
+                    if (text)
+                        this.$$onContentText(text.trim());
+                }
+
+                this.$$objs.pop();
+                this.$$onObjectEnd(obj);
+                this.curObject = this.$$objs[this.$$objs.length - 1];
+            };
+
+            Parser.prototype.$$tryHandleError = function (el, xmlns, name) {
+                if (xmlns !== ERROR_XMLNS || name !== ERROR_NAME)
+                    return false;
+                this.$$onError(new Error(el.textContent));
+                return true;
+            };
+
+            Parser.prototype.$$tryHandlePropertyTag = function (el, xmlns, name) {
+                var ind = name.indexOf('.');
+                if (ind < 0)
+                    return false;
+
+                var type = this.$$onResolveType(xmlns, name.substr(0, ind));
+                name = name.substr(ind + 1);
+
+                this.$$onPropertyStart(type, name);
+
+                var child = el.firstElementChild;
+                while (child) {
+                    this.$$handleElement(child, false);
+                    child = child.nextElementSibling;
+                }
+
+                this.$$onPropertyEnd(type, name);
+
+                return true;
             };
 
             Parser.prototype.$$handleAttribute = function (attr) {
                 if (attr.prefix === "xmlns")
                     return;
-                var tagName = attr.local;
-                if (attr.uri === xaml.DEFAULT_XMLNS_X) {
-                    if (tagName === "Name")
+                var name = attr.localName;
+                if (!attr.prefix && name === "xmlns")
+                    return;
+                var xmlns = attr.namespaceURI;
+                if (xmlns === xaml.DEFAULT_XMLNS_X) {
+                    if (name === "Name")
                         return this.$$onName(attr.value);
-                    if (tagName === "Key")
+                    if (name === "Key")
                         return this.$$onKey(attr.value);
                 }
                 var type = null;
-                var name = tagName;
-                var ind = tagName.indexOf('.');
+                var name = name;
+                var ind = name.indexOf('.');
                 if (ind > -1) {
-                    type = this.$$onResolveType(attr.uri, name.substr(0, ind));
+                    type = this.$$onResolveType(xmlns, name.substr(0, ind));
                     name = name.substr(ind + 1);
                 }
                 this.$$onPropertyStart(type, name);
                 this.$$onObject(attr.value);
                 this.$$onObjectEnd(attr.value);
                 this.$$onPropertyEnd(type, name);
+            };
+
+            Parser.prototype.$$ensure = function () {
+                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onObjectEnd(this.$$onObjectEnd).onContentObject(this.$$onContentObject).onContentText(this.$$onContentText).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
             };
 
             Parser.prototype.onResolveType = function (cb) {
@@ -213,7 +201,6 @@ var sax;
 
             Parser.prototype.$$destroy = function () {
                 this.$$onEnd && this.$$onEnd();
-                this.$$parser = null;
             };
             return Parser;
         })();

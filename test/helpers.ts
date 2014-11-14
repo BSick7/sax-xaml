@@ -1,5 +1,7 @@
 module sax.xaml.tests {
-    export function getDoc (url: string, cb: (doc: string) => any, error?: (error: any) => any) {
+    var parser = new DOMParser();
+
+    export function getDoc (url: string, cb: (doc: Document) => any, error?: (error: any) => any) {
         function handleError (err) {
             if (!error)
                 throw err;
@@ -9,7 +11,7 @@ module sax.xaml.tests {
         var xhr = new XMLHttpRequest();
         xhr.onload = () => {
             if (xhr.status === 200 || xhr.status === 0)
-                return cb(xhr.responseText);
+                return cb(parser.parseFromString(xhr.responseText, "text/xml"));
             handleError(new Error("Status: " + xhr.status));
         };
         xhr.onerror = () => {
@@ -20,7 +22,7 @@ module sax.xaml.tests {
     }
 
     export module mock {
-        export function parse (doc: string, cb: (cmds: any[]) => any) {
+        export function parse (doc: Document, cb: (cmds: any[]) => any) {
             var cmds = [];
             var parser = new Parser()
                 .onResolveType((xmlns, name) => {

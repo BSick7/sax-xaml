@@ -39,7 +39,6 @@ declare module sax.xaml {
         position: number;
     }
     class Parser {
-        private $$parser;
         public curObject: any;
         private $$onResolveType;
         private $$onObjectResolve;
@@ -53,10 +52,13 @@ declare module sax.xaml {
         private $$onPropertyEnd;
         private $$onError;
         private $$onEnd;
-        public info : IParseInfo;
-        public parse(xml: string): Parser;
-        private $$ensure();
+        private $$objs;
+        public parse(doc: Document): Parser;
+        private $$handleElement(el, isContent);
+        private $$tryHandleError(el, xmlns, name);
+        private $$tryHandlePropertyTag(el, xmlns, name);
         private $$handleAttribute(attr);
+        private $$ensure();
         public onResolveType(cb?: events.IResolveType): Parser;
         public onObjectResolve(cb?: events.IObjectResolve): Parser;
         public onObject(cb?: events.IObject): Parser;

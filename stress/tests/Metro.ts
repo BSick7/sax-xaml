@@ -1,11 +1,13 @@
 import StressTest = require('../StressTest');
 
+var parser = new DOMParser();
+
 class Metro extends StressTest {
-    xmlDoc: string;
+    xmlDoc: Document;
 
     prepare (ready?: () => any): boolean {
         require(['text!docs/Metro.theme.xml'], (doc: string) => {
-            this.xmlDoc = doc;
+            this.xmlDoc = parser.parseFromString(doc, "text/xml");
             ready();
         });
         return true;
