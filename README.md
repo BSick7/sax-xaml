@@ -1,47 +1,33 @@
 # sax-xaml
 
 This library is meant to abstract XML parsing by delivering only XAML specific events.
-This library relies on [sax-js](https://github.com/isaacs/sax-js) to parse XML.
+This library relies on browser built-in [DOMParser](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser) to parse XML documents.
 
 ### Usage
 
 ```
 var parser = new Parser()
     .onResolveType((xmlns, name) => {
-        console.log("Resolve Type", xmlns, name);
-        var func = new Function("return function " + name + "() { }");
-        return func();
+        // Resolve and return type
     }).onObjectResolve((type) => {
-        console.log("Resolve Object", type);
-        return new type();
+        // Create object from type
     }).onObject((obj) => {
-        console.log("Object", obj);
+        // Handle object
+    }).onObjectEnd((obj) => {
+        // Handle object tag finishing
     }).onContentObject((obj) => {
-        console.log("Content Object", obj);
+        // Handle content object
     }).onContentText((text) => {
-        console.log("Content Text", text);
+        // Handle content text
     }).onName((name) => {
-        console.log("x:Name", name);
+        // Handle x:Name
     }).onKey((key) => {
-        console.log("x:Key", key);
+        // Handle x:Key
     }).onPropertyStart((ownerType, propName) => {
-        console.log("Property Start", ownerType, propName);
+        // Handle property start (tag or attribute)
     }).onPropertyEnd((ownerType, propName) => {
-        console.log("Property End", ownerType, propName);
+        // Handle property end (tag or attribute)
     }).onEnd(() => {
-        QUnit.start();
-        ok(true);
+        // Document finished parsing
     }).parse(doc);
-```
-
-The parser exposes the following.
-```
-class Parser {
-    curObject: any; // Current Object being processed
-    info : {
-        line: number; // Current Parse line number
-        column: number; // Current Parse column number
-        position: number; // Current Parse position
-    };
-}
 ```
