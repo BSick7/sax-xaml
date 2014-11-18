@@ -23,7 +23,7 @@ declare module sax.xaml.extensions {
         private $$onResolveObject;
         private $$onError;
         private $$onEnd;
-        public curObject: any;
+        public curObject: IMarkupExtension;
         public setNamespaces(defaultXmlns: string, xXmlns: string): void;
         public parse(value: string, resolver: INamespacePrefixResolver): any;
         private $$doParse(ctx);
