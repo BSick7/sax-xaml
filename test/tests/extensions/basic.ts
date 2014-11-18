@@ -67,7 +67,7 @@ module sax.xaml.extensions.tests.basic {
     });
 
     QUnit.test("StaticResource with Property", () => {
-        helpers.parse("{StaticResource ResourceKey=SomeStyle}", cmds => {
+        helpers.parse("{StaticResource ResourceKey=Some\\{Style}", cmds => {
             var i = 0;
             deepEqual(cmds[i], {
                 cmd: 'rt',
@@ -95,8 +95,8 @@ module sax.xaml.extensions.tests.basic {
             i++;
             deepEqual(cmds[i], {
                 cmd: 'os',
-                obj: "SomeStyle"
-            }, 'os \'SomeStyle\'');
+                obj: "Some{Style"
+            }, 'os \'Some{Style\'');
             i++;
             deepEqual(cmds[i], {
                 cmd: 'pe',
