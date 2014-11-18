@@ -22,7 +22,7 @@ module sax.xaml.tests {
     }
 
     export module mock {
-        export function parse (doc: Document, cb: (cmds: any[]) => any) {
+        export function parse (el: Element, cb: (cmds: any[]) => any) {
             var cmds = [];
             var parser = new Parser()
                 .onResolveType((xmlns, name) => {
@@ -87,7 +87,7 @@ module sax.xaml.tests {
                     });
                 }).onEnd(() => {
                     cb(cmds);
-                }).parse(doc);
+                }).parse(el);
         }
     }
 }

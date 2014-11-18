@@ -8,7 +8,7 @@ module sax.xaml.tests.basic {
                     QUnit.start();
                     ok(true);
                 })
-                .parse(doc);
+                .parse(doc.documentElement);
         }, (err) => {
             QUnit.start();
             ok(false, err.message);
@@ -17,7 +17,7 @@ module sax.xaml.tests.basic {
 
     QUnit.asyncTest("Basic", () => {
         getDoc("docs/basic.xml", (doc) => {
-            mock.parse(doc, (cmds) => {
+            mock.parse(doc.documentElement, (cmds) => {
                 QUnit.start();
 
                 //Application

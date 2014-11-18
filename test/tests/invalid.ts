@@ -13,7 +13,7 @@ module sax.xaml.tests.invalid {
                 .onEnd(() => {
                     ok(errored);
                 })
-                .parse(doc);
+                .parse(doc.documentElement);
         }, (err) => {
             QUnit.start();
             ok(false, err.message);

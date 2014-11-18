@@ -53,7 +53,7 @@ declare module sax.xaml {
         private $$onError;
         private $$onEnd;
         private $$objs;
-        public parse(doc: Document): Parser;
+        public parse(el: Element): Parser;
         private $$handleElement(el, isContent);
         private $$tryHandleError(el, xmlns, name);
         private $$tryHandlePropertyTag(el, xmlns, name);

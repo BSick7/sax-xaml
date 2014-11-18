@@ -65,9 +65,8 @@ module sax.xaml {
 
         private $$objs = [];
 
-        parse (doc: Document): Parser {
+        parse (el: Element): Parser {
             this.$$ensure();
-            var el = doc.documentElement;
             this.$$handleElement(el, true);
             this.$$destroy();
             return this;

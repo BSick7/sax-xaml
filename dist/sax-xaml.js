@@ -19,9 +19,8 @@ var sax;
                 this.$$onEnd = null;
                 this.$$objs = [];
             }
-            Parser.prototype.parse = function (doc) {
+            Parser.prototype.parse = function (el) {
                 this.$$ensure();
-                var el = doc.documentElement;
                 this.$$handleElement(el, true);
                 this.$$destroy();
                 return this;
