@@ -1,7 +1,6 @@
 module sax.xaml.tests.multi {
     QUnit.module('MultiContent Tests');
 
-
     QUnit.asyncTest("MultiContent", () => {
         getDoc("docs/multicontent.xml", (doc) => {
             mock.parse(doc.documentElement, (cmds) => {

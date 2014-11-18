@@ -3,7 +3,6 @@ module sax.xaml {
     export var DEFAULT_XMLNS_X = "http://schemas.wsick.com/fayde/x";
     var ERROR_XMLNS = "http://www.w3.org/1999/xhtml";
     var ERROR_NAME = "parsererror";
-    var NS_XMLNS = "";
 
     export module events {
         export interface IResolveType {
@@ -64,6 +63,22 @@ module sax.xaml {
         private $$onEnd: () => any = null;
 
         private $$objs = [];
+
+        extension = new extensions.ExtensionParser();
+
+        private $$defaultXmlns: string;
+        private $$xXmlns: string;
+
+        constructor () {
+            this.setNamespaces(DEFAULT_XMLNS, DEFAULT_XMLNS_X);
+        }
+
+        setNamespaces (defaultXmlns: string, xXmlns: string): Parser {
+            this.$$defaultXmlns = defaultXmlns;
+            this.$$xXmlns = xXmlns;
+            this.extension.setNamespaces(defaultXmlns, xXmlns);
+            return this;
+        }
 
         parse (el: Element): Parser {
             this.$$ensure();
@@ -161,11 +176,11 @@ module sax.xaml {
             if (!attr.prefix && name === "xmlns")
                 return;
             var xmlns = attr.namespaceURI;
-            if (xmlns === DEFAULT_XMLNS_X) {
+            if (xmlns === this.$$xXmlns) {
                 if (name === "Name")
-                    return this.$$onName(attr.value);
+                    return this.$$onName(this.$$getAttrValue(attr));
                 if (name === "Key")
-                    return this.$$onKey(attr.value);
+                    return this.$$onKey(this.$$getAttrValue(attr));
             }
             var type = null;
             var name = name;
@@ -175,9 +190,17 @@ module sax.xaml {
                 name = name.substr(ind + 1);
             }
             this.$$onPropertyStart(type, name);
-            this.$$onObject(attr.value);
-            this.$$onObjectEnd(attr.value);
+            var val = this.$$getAttrValue(attr);
+            this.$$onObject(val);
+            this.$$onObjectEnd(val);
             this.$$onPropertyEnd(type, name);
+        }
+
+        private $$getAttrValue (attr: Attr): any {
+            var val = attr.value;
+            if (val[0] !== "{")
+                return val;
+            return this.extension.parse(val, attr);
         }
 
         private $$ensure () {

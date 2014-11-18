@@ -8,17 +8,210 @@ var sax;
 var sax;
 (function (sax) {
     (function (xaml) {
+        (function (extensions) {
+            
+
+            var ExtensionParser = (function () {
+                function ExtensionParser() {
+                    this.$$defaultXmlns = "http://schemas.wsick.com/fayde";
+                    this.$$xXmlns = "http://schemas.wsick.com/fayde/x";
+                    this.$$onEnd = null;
+                }
+                ExtensionParser.prototype.setNamespaces = function (defaultXmlns, xXmlns) {
+                    this.$$defaultXmlns = defaultXmlns;
+                    this.$$xXmlns = xXmlns;
+                };
+
+                ExtensionParser.prototype.parse = function (value, resolver) {
+                    this.$$ensure();
+                    var ctx = {
+                        text: value,
+                        i: 1,
+                        acc: "",
+                        error: "",
+                        objs: [],
+                        resolver: resolver
+                    };
+                    var obj = this.$$doParse(ctx);
+                    if (ctx.error)
+                        this.$$onError(ctx.error);
+                    this.$$destroy();
+                    return obj;
+                };
+
+                ExtensionParser.prototype.$$doParse = function (ctx) {
+                    if (!this.$$parseName(ctx))
+                        return undefined;
+                    if (!this.$$startExtension(ctx))
+                        return undefined;
+
+                    while (ctx.i < ctx.text.length) {
+                        if (!this.$$parseKeyValue(ctx))
+                            break;
+                        if (ctx.text[ctx.i] === "}") {
+                            ctx.i++;
+                            break;
+                        }
+                    }
+
+                    var obj = ctx.objs.pop();
+                    this.curObject = ctx.objs[ctx.objs.length - 1];
+                    return obj;
+                };
+
+                ExtensionParser.prototype.$$parseName = function (ctx) {
+                    var ind = ctx.text.indexOf(" ", ctx.i);
+                    if (ind <= ctx.i) {
+                        ctx.error = "An extension name must be specified.";
+                        return false;
+                    }
+                    ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
+                    ctx.i = ind + 1;
+                    return true;
+                };
+
+                ExtensionParser.prototype.$$startExtension = function (ctx) {
+                    var full = ctx.acc;
+                    var ind = full.indexOf(":");
+                    var prefix = (ind < 0) ? null : full.substr(0, ind);
+                    var name = (ind < 0) ? full : full.substr(ind + 1);
+                    var uri = ctx.resolver.lookupNamespaceURI(prefix);
+
+                    var type = this.$$onResolveType(uri, name);
+                    var obj = this.curObject = this.$$onObjectResolve(type);
+                    ctx.objs.push(obj);
+                    this.$$onObjectStart(obj);
+                    return true;
+                };
+
+                ExtensionParser.prototype.$$parseKeyValue = function (ctx) {
+                    var text = ctx.text;
+                    ctx.acc = "";
+                    var key = "";
+                    var val = undefined;
+                    for (; ctx.i < text.length; ctx.i++) {
+                        var cur = text[ctx.i];
+                        if (cur === "\\") {
+                            ctx.i++;
+                            ctx.acc += text[ctx.i];
+                        } else if (cur === "{") {
+                            if (!key) {
+                                ctx.error = "A sub extension must be set to a key.";
+                                return false;
+                            }
+                            ctx.i++;
+                            val = this.$$doParse(ctx);
+                            if (ctx.error)
+                                return false;
+                        } else if (cur === "=") {
+                            key = ctx.acc;
+                            this.$$onPropertyStart(key);
+                            ctx.acc = "";
+                        } else if (cur === "}") {
+                            this.$$finishKeyValue(ctx.acc, key, val);
+                            return true;
+                        } else if (cur === ",") {
+                            ctx.i++;
+                            this.$$finishKeyValue(ctx.acc, key, val);
+                            return true;
+                        } else {
+                            ctx.acc += cur;
+                        }
+                    }
+                };
+
+                ExtensionParser.prototype.$$finishKeyValue = function (acc, key, val) {
+                    if (val === undefined) {
+                        if (!(val = acc.trim()))
+                            return;
+                        if (!key)
+                            this.$$onPropertyStart(key = null);
+                        this.$$onObjectStart(val);
+                    }
+                    this.$$onPropertyEnd(key);
+                };
+
+                ExtensionParser.prototype.$$ensure = function () {
+                    this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObjectStart(this.$$onObjectStart).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
+                };
+
+                ExtensionParser.prototype.onResolveType = function (cb) {
+                    this.$$onResolveType = cb || (function (xmlns, name) {
+                        return Object;
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onObjectResolve = function (cb) {
+                    this.$$onObjectResolve = cb || (function (type) {
+                        return new type();
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onObjectStart = function (cb) {
+                    this.$$onObjectStart = cb || (function (obj) {
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onPropertyStart = function (cb) {
+                    this.$$onPropertyStart = cb || (function (propName) {
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onPropertyEnd = function (cb) {
+                    this.$$onPropertyEnd = cb || (function (propName) {
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onError = function (cb) {
+                    this.$$onError = cb || (function (e) {
+                        return true;
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onEnd = function (cb) {
+                    this.$$onEnd = cb;
+                    return this;
+                };
+
+                ExtensionParser.prototype.$$destroy = function () {
+                    this.$$onEnd && this.$$onEnd();
+                };
+                return ExtensionParser;
+            })();
+            extensions.ExtensionParser = ExtensionParser;
+        })(xaml.extensions || (xaml.extensions = {}));
+        var extensions = xaml.extensions;
+    })(sax.xaml || (sax.xaml = {}));
+    var xaml = sax.xaml;
+})(sax || (sax = {}));
+var sax;
+(function (sax) {
+    (function (xaml) {
         xaml.DEFAULT_XMLNS = "http://schemas.wsick.com/fayde";
         xaml.DEFAULT_XMLNS_X = "http://schemas.wsick.com/fayde/x";
         var ERROR_XMLNS = "http://www.w3.org/1999/xhtml";
         var ERROR_NAME = "parsererror";
-        var NS_XMLNS = "";
 
         var Parser = (function () {
             function Parser() {
                 this.$$onEnd = null;
                 this.$$objs = [];
+                this.extension = new xaml.extensions.ExtensionParser();
+                this.setNamespaces(xaml.DEFAULT_XMLNS, xaml.DEFAULT_XMLNS_X);
             }
+            Parser.prototype.setNamespaces = function (defaultXmlns, xXmlns) {
+                this.$$defaultXmlns = defaultXmlns;
+                this.$$xXmlns = xXmlns;
+                this.extension.setNamespaces(defaultXmlns, xXmlns);
+                return this;
+            };
+
             Parser.prototype.parse = function (el) {
                 this.$$ensure();
                 this.$$handleElement(el, true);
@@ -101,11 +294,11 @@ var sax;
                 if (!attr.prefix && name === "xmlns")
                     return;
                 var xmlns = attr.namespaceURI;
-                if (xmlns === xaml.DEFAULT_XMLNS_X) {
+                if (xmlns === this.$$xXmlns) {
                     if (name === "Name")
-                        return this.$$onName(attr.value);
+                        return this.$$onName(this.$$getAttrValue(attr));
                     if (name === "Key")
-                        return this.$$onKey(attr.value);
+                        return this.$$onKey(this.$$getAttrValue(attr));
                 }
                 var type = null;
                 var name = name;
@@ -115,9 +308,17 @@ var sax;
                     name = name.substr(ind + 1);
                 }
                 this.$$onPropertyStart(type, name);
-                this.$$onObject(attr.value);
-                this.$$onObjectEnd(attr.value);
+                var val = this.$$getAttrValue(attr);
+                this.$$onObject(val);
+                this.$$onObjectEnd(val);
                 this.$$onPropertyEnd(type, name);
+            };
+
+            Parser.prototype.$$getAttrValue = function (attr) {
+                var val = attr.value;
+                if (val[0] !== "{")
+                    return val;
+                return this.extension.parse(val, attr);
             };
 
             Parser.prototype.$$ensure = function () {
