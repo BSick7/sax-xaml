@@ -6,17 +6,8 @@ declare module sax.xaml.extensions {
         interface IResolveType {
             (xmlns: string, name: string): any;
         }
-        interface IObjectResolve {
+        interface IResolveObject {
             (type: any): any;
-        }
-        interface IObjectStart {
-            (obj: any): any;
-        }
-        interface IPropertyStart {
-            (propName: string): any;
-        }
-        interface IPropertyEnd {
-            (propName: string): any;
         }
         interface IError {
             (e: Error): any;
@@ -29,10 +20,7 @@ declare module sax.xaml.extensions {
         private $$defaultXmlns;
         private $$xXmlns;
         private $$onResolveType;
-        private $$onObjectResolve;
-        private $$onObjectStart;
-        private $$onPropertyStart;
-        private $$onPropertyEnd;
+        private $$onResolveObject;
         private $$onError;
         private $$onEnd;
         public curObject: any;
@@ -46,13 +34,15 @@ declare module sax.xaml.extensions {
         private $$finishKeyValue(acc, key, val);
         private $$ensure();
         public onResolveType(cb?: events.IResolveType): ExtensionParser;
-        public onObjectResolve(cb?: events.IObjectResolve): ExtensionParser;
-        public onObjectStart(cb?: events.IObjectStart): ExtensionParser;
-        public onPropertyStart(cb?: events.IPropertyStart): ExtensionParser;
-        public onPropertyEnd(cb?: events.IPropertyEnd): ExtensionParser;
+        public onResolveObject(cb?: events.IResolveObject): ExtensionParser;
         public onError(cb?: events.IError): ExtensionParser;
         public onEnd(cb: () => any): ExtensionParser;
         private $$destroy();
+    }
+}
+declare module sax.xaml {
+    interface IMarkupExtension {
+        init(val: string): any;
     }
 }
 declare module sax.xaml {

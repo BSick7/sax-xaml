@@ -1,44 +1,38 @@
 module sax.xaml.extensions.tests.basic {
-    QUnit.module('Markup Extension');
+    QUnit.module('Markup Extension (xmlns:x)');
+
+    var parser = new ExtensionParser()
+        .onResolveType((xmlns, name) => {
+            var func = new Function("return function " + name + "() { }");
+            return func();
+        });
+    var mock = {
+        resolver: function (): INamespacePrefixResolver {
+            return {
+                lookupNamespaceURI: function (prefix: string): string {
+                    if (prefix === null)
+                        return sax.xaml.DEFAULT_XMLNS;
+                    if (prefix === "x")
+                        return sax.xaml.DEFAULT_XMLNS_X;
+                    return "";
+                }
+            };
+        }
+    };
 
     QUnit.test("x:Type", () => {
-        helpers.parse("{x:Type Application}", cmds => {
-            var i = 0;
-            var appType = cmds[i].type;
-            deepEqual(cmds[i], {
-                cmd: 'rt',
-                xmlns: sax.xaml.DEFAULT_XMLNS,
-                name: 'Application',
-                type: appType
-            }, 'rt Application');
-            i++;
-            deepEqual(cmds[i], {
-                cmd: 'os',
-                obj: appType
-            }, 'os ApplicationType');
-            strictEqual(cmds.length, i + 1);
-        });
+        var val = parser.parse("{x:Type Application}", mock.resolver());
+        ok(typeof val === "function");
+        strictEqual(val.name, "Application");
     });
 
     QUnit.test("x:Null", () => {
-        helpers.parse("{x:Null}", cmds => {
-            var i = 0;
-            deepEqual(cmds[i], {
-                cmd: 'os',
-                obj: null
-            }, 'os Null');
-            strictEqual(cmds.length, i + 1);
-        });
+        var val = parser.parse("{x:Null}", mock.resolver());
+        strictEqual(val, null);
     });
 
     QUnit.test("x:Static", () => {
-        helpers.parse("{x:Static window}", cmds => {
-            var i = 0;
-            deepEqual(cmds[i], {
-                cmd: 'os',
-                obj: window
-            }, 'os window');
-            strictEqual(cmds.length, i + 1);
-        });
+        var val = parser.parse("{x:Static window}", mock.resolver());
+        strictEqual(val, window);
     });
 }

@@ -90,15 +90,14 @@ var sax;
                     }
 
                     var type = this.$$onResolveType(uri, name);
-                    var obj = this.curObject = this.$$onObjectResolve(type);
+                    var obj = this.curObject = this.$$onResolveObject(type);
                     ctx.objs.push(obj);
-                    this.$$onObjectStart(obj);
                     return true;
                 };
 
                 ExtensionParser.prototype.$$parseXExt = function (ctx, name, val) {
                     if (name === "Null") {
-                        this.$$onObjectStart(null);
+                        ctx.objs.push(null);
                         return true;
                     }
                     if (name === "Type") {
@@ -107,12 +106,12 @@ var sax;
                         var name = (ind < 0) ? val : val.substr(ind + 1);
                         var uri = ctx.resolver.lookupNamespaceURI(prefix);
                         var type = this.$$onResolveType(uri, name);
-                        this.$$onObjectStart(type);
+                        ctx.objs.push(type);
                         return true;
                     }
                     if (name === "Static") {
                         var func = new Function("return (" + val + ");");
-                        this.$$onObjectStart(func());
+                        ctx.objs.push(func());
                         return true;
                     }
                     return true;
@@ -139,7 +138,6 @@ var sax;
                                 return false;
                         } else if (cur === "=") {
                             key = ctx.acc;
-                            this.$$onPropertyStart(key);
                             ctx.acc = "";
                         } else if (cur === "}") {
                             this.$$finishKeyValue(ctx.acc, key, val);
@@ -158,15 +156,16 @@ var sax;
                     if (val === undefined) {
                         if (!(val = acc.trim()))
                             return;
-                        if (!key)
-                            this.$$onPropertyStart(key = null);
-                        this.$$onObjectStart(val);
                     }
-                    this.$$onPropertyEnd(key);
+                    if (!key) {
+                        this.curObject.init(val);
+                    } else {
+                        this.curObject[key] = val;
+                    }
                 };
 
                 ExtensionParser.prototype.$$ensure = function () {
-                    this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObjectStart(this.$$onObjectStart).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
+                    this.onResolveType(this.$$onResolveType).onResolveObject(this.$$onResolveObject).onError(this.$$onError);
                 };
 
                 ExtensionParser.prototype.onResolveType = function (cb) {
@@ -176,27 +175,9 @@ var sax;
                     return this;
                 };
 
-                ExtensionParser.prototype.onObjectResolve = function (cb) {
-                    this.$$onObjectResolve = cb || (function (type) {
+                ExtensionParser.prototype.onResolveObject = function (cb) {
+                    this.$$onResolveObject = cb || (function (type) {
                         return new type();
-                    });
-                    return this;
-                };
-
-                ExtensionParser.prototype.onObjectStart = function (cb) {
-                    this.$$onObjectStart = cb || (function (obj) {
-                    });
-                    return this;
-                };
-
-                ExtensionParser.prototype.onPropertyStart = function (cb) {
-                    this.$$onPropertyStart = cb || (function (propName) {
-                    });
-                    return this;
-                };
-
-                ExtensionParser.prototype.onPropertyEnd = function (cb) {
-                    this.$$onPropertyEnd = cb || (function (propName) {
                     });
                     return this;
                 };

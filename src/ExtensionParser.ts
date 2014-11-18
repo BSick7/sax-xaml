@@ -13,17 +13,8 @@ module sax.xaml.extensions {
         export interface IResolveType {
             (xmlns: string, name: string): any;
         }
-        export interface IObjectResolve {
+        export interface IResolveObject {
             (type: any): any;
-        }
-        export interface IObjectStart {
-            (obj: any);
-        }
-        export interface IPropertyStart {
-            (propName: string);
-        }
-        export interface IPropertyEnd {
-            (propName: string);
         }
         export interface IError {
             (e: Error);
@@ -46,14 +37,11 @@ module sax.xaml.extensions {
         private $$xXmlns = "http://schemas.wsick.com/fayde/x";
 
         private $$onResolveType: events.IResolveType;
-        private $$onObjectResolve: events.IObjectResolve;
-        private $$onObjectStart: events.IObjectStart;
-        private $$onPropertyStart: events.IPropertyStart;
-        private $$onPropertyEnd: events.IPropertyEnd;
+        private $$onResolveObject: events.IResolveObject;
         private $$onError: events.IError;
         private $$onEnd: () => any = null;
 
-        curObject: any;
+        curObject: IMarkupExtension;
 
         setNamespaces (defaultXmlns: string, xXmlns: string) {
             this.$$defaultXmlns = defaultXmlns;
@@ -128,15 +116,14 @@ module sax.xaml.extensions {
             }
 
             var type = this.$$onResolveType(uri, name);
-            var obj = this.curObject = this.$$onObjectResolve(type);
+            var obj = this.curObject = this.$$onResolveObject(type);
             ctx.objs.push(obj);
-            this.$$onObjectStart(obj);
             return true;
         }
 
         private $$parseXExt (ctx: IParseContext, name: string, val: string): boolean {
             if (name === "Null") {
-                this.$$onObjectStart(null);
+                ctx.objs.push(null);
                 return true;
             }
             if (name === "Type") {
@@ -145,12 +132,12 @@ module sax.xaml.extensions {
                 var name = (ind < 0) ? val : val.substr(ind + 1);
                 var uri = ctx.resolver.lookupNamespaceURI(prefix);
                 var type = this.$$onResolveType(uri, name);
-                this.$$onObjectStart(type);
+                ctx.objs.push(type);
                 return true;
             }
             if (name === "Static") {
                 var func = new Function("return (" + val + ");");
-                this.$$onObjectStart(func());
+                ctx.objs.push(func());
                 return true;
             }
             return true;
@@ -177,7 +164,6 @@ module sax.xaml.extensions {
                         return false;
                 } else if (cur === "=") {
                     key = ctx.acc;
-                    this.$$onPropertyStart(key);
                     ctx.acc = "";
                 } else if (cur === "}") {
                     this.$$finishKeyValue(ctx.acc, key, val);
@@ -196,19 +182,17 @@ module sax.xaml.extensions {
             if (val === undefined) {
                 if (!(val = acc.trim()))
                     return;
-                if (!key)
-                    this.$$onPropertyStart(key = null);
-                this.$$onObjectStart(val);
             }
-            this.$$onPropertyEnd(key);
+            if (!key) {
+                this.curObject.init(val);
+            } else {
+                this.curObject[key] = val;
+            }
         }
 
         private $$ensure () {
             this.onResolveType(this.$$onResolveType)
-                .onObjectResolve(this.$$onObjectResolve)
-                .onObjectStart(this.$$onObjectStart)
-                .onPropertyStart(this.$$onPropertyStart)
-                .onPropertyEnd(this.$$onPropertyEnd)
+                .onResolveObject(this.$$onResolveObject)
                 .onError(this.$$onError);
         }
 
@@ -217,26 +201,8 @@ module sax.xaml.extensions {
             return this;
         }
 
-        onObjectResolve (cb?: events.IObjectResolve): ExtensionParser {
-            this.$$onObjectResolve = cb || ((type) => new type());
-            return this;
-        }
-
-        onObjectStart (cb?: events.IObjectStart): ExtensionParser {
-            this.$$onObjectStart = cb || ((obj) => {
-            });
-            return this;
-        }
-
-        onPropertyStart (cb?: events.IPropertyStart): ExtensionParser {
-            this.$$onPropertyStart = cb || ((propName) => {
-            });
-            return this;
-        }
-
-        onPropertyEnd (cb?: events.IPropertyEnd): ExtensionParser {
-            this.$$onPropertyEnd = cb || ((propName) => {
-            });
+        onResolveObject (cb?: events.IResolveObject): ExtensionParser {
+            this.$$onResolveObject = cb || ((type) => new type());
             return this;
         }
 
