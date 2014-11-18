@@ -99,13 +99,19 @@ module sax.xaml.extensions {
 
         private $$parseName (ctx: IParseContext): boolean {
             var ind = ctx.text.indexOf(" ", ctx.i);
-            if (ind <= ctx.i) {
-                ctx.error = "An extension name must be specified.";
-                return false;
+            if (ind > ctx.i) {
+                ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
+                ctx.i = ind + 1;
+                return true;
             }
-            ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
-            ctx.i = ind + 1;
-            return true;
+            ind = ctx.text.indexOf("}", ctx.i);
+            if (ind > ctx.i) {
+                ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
+                ctx.i = ind;
+                return true;
+            }
+            ctx.error = "Missing closing bracket.";
+            return false;
         }
 
         private $$startExtension (ctx: IParseContext): boolean {
@@ -115,10 +121,38 @@ module sax.xaml.extensions {
             var name = (ind < 0) ? full : full.substr(ind + 1);
             var uri = ctx.resolver.lookupNamespaceURI(prefix);
 
+            if (uri === this.$$xXmlns) {
+                var val = ctx.text.substr(ctx.i, ctx.text.length - ctx.i - 1);
+                ctx.i = ctx.text.length;
+                return this.$$parseXExt(ctx, name, val);
+            }
+
             var type = this.$$onResolveType(uri, name);
             var obj = this.curObject = this.$$onObjectResolve(type);
             ctx.objs.push(obj);
             this.$$onObjectStart(obj);
+            return true;
+        }
+
+        private $$parseXExt (ctx: IParseContext, name: string, val: string): boolean {
+            if (name === "Null") {
+                this.$$onObjectStart(null);
+                return true;
+            }
+            if (name === "Type") {
+                var ind = val.indexOf(":");
+                var prefix = (ind < 0) ? null : val.substr(0, ind);
+                var name = (ind < 0) ? val : val.substr(ind + 1);
+                var uri = ctx.resolver.lookupNamespaceURI(prefix);
+                var type = this.$$onResolveType(uri, name);
+                this.$$onObjectStart(type);
+                return true;
+            }
+            if (name === "Static") {
+                var func = new Function("return (" + val + ");");
+                this.$$onObjectStart(func());
+                return true;
+            }
             return true;
         }
 

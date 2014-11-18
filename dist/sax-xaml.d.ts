@@ -41,6 +41,7 @@ declare module sax.xaml.extensions {
         private $$doParse(ctx);
         private $$parseName(ctx);
         private $$startExtension(ctx);
+        private $$parseXExt(ctx, name, val);
         private $$parseKeyValue(ctx);
         private $$finishKeyValue(acc, key, val);
         private $$ensure();
