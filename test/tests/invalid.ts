@@ -5,7 +5,7 @@ module sax.xaml.tests.invalid {
         getDoc("docs/invalid.xml", (doc) => {
             QUnit.start();
             var errored = false;
-            var parser = new Parser()
+            var parser = new Parser<IDocumentContext>()
                 .onError((e) => {
                     errored = true;
                     return true;

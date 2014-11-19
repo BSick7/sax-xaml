@@ -16,27 +16,26 @@ declare module sax.xaml.extensions {
     interface INamespacePrefixResolver {
         lookupNamespaceURI(prefix: string): string;
     }
-    class ExtensionParser {
+    class ExtensionParser<TDoc extends IDocumentContext> {
         private $$defaultXmlns;
         private $$xXmlns;
         private $$onResolveType;
         private $$onResolveObject;
         private $$onError;
         private $$onEnd;
-        public curObject: IMarkupExtension;
         public setNamespaces(defaultXmlns: string, xXmlns: string): void;
-        public parse(value: string, resolver: INamespacePrefixResolver): any;
+        public parse(value: string, resolver: INamespacePrefixResolver, docCtx: TDoc): any;
         private $$doParse(ctx);
         private $$parseName(ctx);
         private $$startExtension(ctx);
         private $$parseXExt(ctx, name, val);
         private $$parseKeyValue(ctx);
-        private $$finishKeyValue(acc, key, val);
+        private $$finishKeyValue(acc, key, val, docCtx);
         private $$ensure();
-        public onResolveType(cb?: events.IResolveType): ExtensionParser;
-        public onResolveObject(cb?: events.IResolveObject): ExtensionParser;
-        public onError(cb?: events.IError): ExtensionParser;
-        public onEnd(cb: () => any): ExtensionParser;
+        public onResolveType(cb?: events.IResolveType): ExtensionParser<TDoc>;
+        public onResolveObject(cb?: events.IResolveObject): ExtensionParser<TDoc>;
+        public onError(cb?: events.IError): ExtensionParser<TDoc>;
+        public onEnd(cb: () => any): ExtensionParser<TDoc>;
         private $$destroy();
     }
 }
@@ -77,13 +76,11 @@ declare module sax.xaml {
             (e: Error): boolean;
         }
     }
-    interface IParseInfo {
-        line: number;
-        column: number;
-        position: number;
+    interface IDocumentContext {
+        curObject: any;
+        objectStack: any[];
     }
-    class Parser {
-        public curObject: any;
+    class Parser<T extends IDocumentContext> {
         private $$onResolveType;
         private $$onObjectResolve;
         private $$onObject;
@@ -96,31 +93,31 @@ declare module sax.xaml {
         private $$onPropertyEnd;
         private $$onError;
         private $$onEnd;
-        private $$objs;
-        public extension: extensions.ExtensionParser;
+        public extension: extensions.ExtensionParser<T>;
         private $$defaultXmlns;
         private $$xXmlns;
         constructor();
-        public setNamespaces(defaultXmlns: string, xXmlns: string): Parser;
-        public parse(el: Element): Parser;
-        private $$handleElement(el, isContent);
+        public setNamespaces(defaultXmlns: string, xXmlns: string): Parser<T>;
+        public createContext(): T;
+        public parse(el: Element): Parser<T>;
+        private $$handleElement(el, ctx, isContent);
         private $$tryHandleError(el, xmlns, name);
-        private $$tryHandlePropertyTag(el, xmlns, name);
-        private $$handleAttribute(attr);
-        private $$getAttrValue(attr);
+        private $$tryHandlePropertyTag(el, ctx, xmlns, name);
+        private $$handleAttribute(attr, ctx);
+        private $$getAttrValue(attr, ctx);
         private $$ensure();
-        public onResolveType(cb?: events.IResolveType): Parser;
-        public onObjectResolve(cb?: events.IObjectResolve): Parser;
-        public onObject(cb?: events.IObject): Parser;
-        public onObjectEnd(cb?: events.IObject): Parser;
-        public onContentObject(cb?: events.IObject): Parser;
-        public onContentText(cb?: events.IObject): Parser;
-        public onName(cb?: events.IName): Parser;
-        public onKey(cb?: events.IKey): Parser;
-        public onPropertyStart(cb?: events.IPropertyStart): Parser;
-        public onPropertyEnd(cb?: events.IPropertyEnd): Parser;
-        public onError(cb?: events.IError): Parser;
-        public onEnd(cb: () => any): Parser;
+        public onResolveType(cb?: events.IResolveType): Parser<T>;
+        public onObjectResolve(cb?: events.IObjectResolve): Parser<T>;
+        public onObject(cb?: events.IObject): Parser<T>;
+        public onObjectEnd(cb?: events.IObject): Parser<T>;
+        public onContentObject(cb?: events.IObject): Parser<T>;
+        public onContentText(cb?: events.IObject): Parser<T>;
+        public onName(cb?: events.IName): Parser<T>;
+        public onKey(cb?: events.IKey): Parser<T>;
+        public onPropertyStart(cb?: events.IPropertyStart): Parser<T>;
+        public onPropertyEnd(cb?: events.IPropertyEnd): Parser<T>;
+        public onError(cb?: events.IError): Parser<T>;
+        public onEnd(cb: () => any): Parser<T>;
         private $$destroy();
     }
 }

@@ -34,21 +34,12 @@ module sax.xaml {
         }
     }
 
-    export interface IParseInfo {
-        line: number;
-        column: number;
-        position: number;
-    }
-
-    interface ITag {
-        prop: boolean;
-        type: any;
-        name: string;
-    }
-
-    export class Parser {
+    export interface IDocumentContext {
         curObject: any;
+        objectStack: any[];
+    }
 
+    export class Parser<T extends IDocumentContext> {
         private $$onResolveType: events.IResolveType;
         private $$onObjectResolve: events.IObjectResolve;
         private $$onObject: events.IObject;
@@ -62,9 +53,7 @@ module sax.xaml {
         private $$onError: events.IError;
         private $$onEnd: () => any = null;
 
-        private $$objs = [];
-
-        extension = new extensions.ExtensionParser();
+        extension = new extensions.ExtensionParser<T>();
 
         private $$defaultXmlns: string;
         private $$xXmlns: string;
@@ -73,21 +62,29 @@ module sax.xaml {
             this.setNamespaces(DEFAULT_XMLNS, DEFAULT_XMLNS_X);
         }
 
-        setNamespaces (defaultXmlns: string, xXmlns: string): Parser {
+        setNamespaces (defaultXmlns: string, xXmlns: string): Parser<T> {
             this.$$defaultXmlns = defaultXmlns;
             this.$$xXmlns = xXmlns;
             this.extension.setNamespaces(defaultXmlns, xXmlns);
             return this;
         }
 
-        parse (el: Element): Parser {
+        createContext (): T {
+            return <T>{
+                curObject: undefined,
+                objectStack: []
+            };
+        }
+
+        parse (el: Element): Parser<T> {
             this.$$ensure();
-            this.$$handleElement(el, true);
+            var ctx = this.createContext();
+            this.$$handleElement(el, ctx, true);
             this.$$destroy();
             return this;
         }
 
-        private $$handleElement (el: Element, isContent: boolean) {
+        private $$handleElement (el: Element, ctx: T, isContent: boolean) {
             // NOTE: Handle tag open
             //  <[ns:]Type.Name>
             //  <[ns:]Type>
@@ -95,12 +92,12 @@ module sax.xaml {
             var xmlns = el.namespaceURI;
             if (this.$$tryHandleError(el, xmlns, name))
                 return;
-            if (this.$$tryHandlePropertyTag(el, xmlns, name))
+            if (this.$$tryHandlePropertyTag(el, ctx, xmlns, name))
                 return;
 
             var type = this.$$onResolveType(xmlns, name);
-            var obj = this.curObject = this.$$onObjectResolve(type);
-            this.$$objs.push(obj);
+            var obj = ctx.curObject = this.$$onObjectResolve(type);
+            ctx.objectStack.push(obj);
 
             if (isContent) {
                 this.$$onContentObject(obj);
@@ -110,14 +107,14 @@ module sax.xaml {
 
             // NOTE: Walk attributes
             for (var i = 0, attrs = el.attributes, len = attrs.length; i < len; i++) {
-                this.$$handleAttribute(attrs[i]);
+                this.$$handleAttribute(attrs[i], ctx);
             }
 
             // NOTE: Walk Children
             var child = el.firstElementChild;
             var hasChildren = !!child;
             while (child) {
-                this.$$handleElement(child, true);
+                this.$$handleElement(child, ctx, true);
                 child = child.nextElementSibling;
             }
 
@@ -131,9 +128,9 @@ module sax.xaml {
             // NOTE: Handle tag close
             //  </[ns:]Type.Name>
             //  </[ns:]Type>
-            this.$$objs.pop();
+            ctx.objectStack.pop();
             this.$$onObjectEnd(obj);
-            this.curObject = this.$$objs[this.$$objs.length - 1];
+            ctx.curObject = ctx.objectStack[ctx.objectStack.length - 1];
         }
 
         private $$tryHandleError (el: Element, xmlns: string, name: string): boolean {
@@ -143,7 +140,7 @@ module sax.xaml {
             return true;
         }
 
-        private $$tryHandlePropertyTag (el: Element, xmlns: string, name: string): boolean {
+        private $$tryHandlePropertyTag (el: Element, ctx: T, xmlns: string, name: string): boolean {
             var ind = name.indexOf('.');
             if (ind < 0)
                 return false;
@@ -155,7 +152,7 @@ module sax.xaml {
 
             var child = el.firstElementChild;
             while (child) {
-                this.$$handleElement(child, false);
+                this.$$handleElement(child, ctx, false);
                 child = child.nextElementSibling;
             }
 
@@ -164,7 +161,7 @@ module sax.xaml {
             return true;
         }
 
-        private $$handleAttribute (attr: Attr) {
+        private $$handleAttribute (attr: Attr, ctx: T) {
             // NOTE:
             //  ... [ns:]Type.Name="..."
             //  ... x:Name="..."
@@ -178,9 +175,9 @@ module sax.xaml {
             var xmlns = attr.namespaceURI;
             if (xmlns === this.$$xXmlns) {
                 if (name === "Name")
-                    return this.$$onName(this.$$getAttrValue(attr));
+                    return this.$$onName(this.$$getAttrValue(attr, ctx));
                 if (name === "Key")
-                    return this.$$onKey(this.$$getAttrValue(attr));
+                    return this.$$onKey(this.$$getAttrValue(attr, ctx));
             }
             var type = null;
             var name = name;
@@ -190,17 +187,17 @@ module sax.xaml {
                 name = name.substr(ind + 1);
             }
             this.$$onPropertyStart(type, name);
-            var val = this.$$getAttrValue(attr);
+            var val = this.$$getAttrValue(attr, ctx);
             this.$$onObject(val);
             this.$$onObjectEnd(val);
             this.$$onPropertyEnd(type, name);
         }
 
-        private $$getAttrValue (attr: Attr): any {
+        private $$getAttrValue (attr: Attr, ctx: T): any {
             var val = attr.value;
             if (val[0] !== "{")
                 return val;
-            return this.extension.parse(val, attr);
+            return this.extension.parse(val, attr, ctx);
         }
 
         private $$ensure () {
@@ -217,70 +214,70 @@ module sax.xaml {
                 .onError(this.$$onError);
         }
 
-        onResolveType (cb?: events.IResolveType): Parser {
+        onResolveType (cb?: events.IResolveType): Parser<T> {
             this.$$onResolveType = cb || ((xmlns, name) => Object);
             return this;
         }
 
-        onObjectResolve (cb?: events.IObjectResolve): Parser {
+        onObjectResolve (cb?: events.IObjectResolve): Parser<T> {
             this.$$onObjectResolve = cb || ((type) => new type());
             return this;
         }
 
-        onObject (cb?: events.IObject): Parser {
+        onObject (cb?: events.IObject): Parser<T> {
             this.$$onObject = cb || ((obj) => {
             });
             return this;
         }
 
-        onObjectEnd (cb?: events.IObject): Parser {
+        onObjectEnd (cb?: events.IObject): Parser<T> {
             this.$$onObjectEnd = cb || ((obj) => {
             });
             return this;
         }
 
-        onContentObject (cb?: events.IObject): Parser {
+        onContentObject (cb?: events.IObject): Parser<T> {
             this.$$onContentObject = cb || ((obj) => {
             });
             return this;
         }
 
-        onContentText (cb?: events.IObject): Parser {
+        onContentText (cb?: events.IObject): Parser<T> {
             this.$$onContentText = cb || ((text) => {
             });
             return this;
         }
 
-        onName (cb?: events.IName): Parser {
+        onName (cb?: events.IName): Parser<T> {
             this.$$onName = cb || ((name) => {
             });
             return this;
         }
 
-        onKey (cb?: events.IKey): Parser {
+        onKey (cb?: events.IKey): Parser<T> {
             this.$$onKey = cb || ((key) => {
             });
             return this;
         }
 
-        onPropertyStart (cb?: events.IPropertyStart): Parser {
+        onPropertyStart (cb?: events.IPropertyStart): Parser<T> {
             this.$$onPropertyStart = cb || ((ownerType, propName) => {
             });
             return this;
         }
 
-        onPropertyEnd (cb?: events.IPropertyEnd): Parser {
+        onPropertyEnd (cb?: events.IPropertyEnd): Parser<T> {
             this.$$onPropertyEnd = cb || ((ownerType, propName) => {
             });
             return this;
         }
 
-        onError (cb?: events.IError): Parser {
+        onError (cb?: events.IError): Parser<T> {
             this.$$onError = cb || ((e) => true);
             return this;
         }
 
-        onEnd (cb: () => any): Parser {
+        onEnd (cb: () => any): Parser<T> {
             this.$$onEnd = cb;
             return this;
         }

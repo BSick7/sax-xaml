@@ -24,7 +24,7 @@ module sax.xaml.tests {
     export module mock {
         export function parse (el: Element, cb: (cmds: any[]) => any) {
             var cmds = [];
-            var parser = new Parser()
+            var parser = new Parser<IDocumentContext>()
                 .onResolveType((xmlns, name) => {
                     var func = new Function("return function " + name + "() { }");
                     var type = func();

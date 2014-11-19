@@ -21,18 +21,18 @@ module sax.xaml.extensions {
         }
     }
 
-    interface IParseContext {
+    interface IParseContext<TDoc extends IDocumentContext> {
         text: string;
         i: number;
         acc: string;
         error: any;
-        objs: any[];
         resolver: INamespacePrefixResolver;
+        docCtx: TDoc;
     }
     export interface INamespacePrefixResolver {
         lookupNamespaceURI(prefix: string): string;
     }
-    export class ExtensionParser {
+    export class ExtensionParser<TDoc extends IDocumentContext> {
         private $$defaultXmlns = "http://schemas.wsick.com/fayde";
         private $$xXmlns = "http://schemas.wsick.com/fayde/x";
 
@@ -41,22 +41,20 @@ module sax.xaml.extensions {
         private $$onError: events.IError;
         private $$onEnd: () => any = null;
 
-        curObject: IMarkupExtension;
-
         setNamespaces (defaultXmlns: string, xXmlns: string) {
             this.$$defaultXmlns = defaultXmlns;
             this.$$xXmlns = xXmlns;
         }
 
-        parse (value: string, resolver: INamespacePrefixResolver): any {
+        parse (value: string, resolver: INamespacePrefixResolver, docCtx: TDoc): any {
             this.$$ensure();
-            var ctx: IParseContext = {
+            var ctx: IParseContext<TDoc> = {
                 text: value,
                 i: 1,
                 acc: "",
                 error: "",
-                objs: [],
-                resolver: resolver
+                resolver: resolver,
+                docCtx: docCtx
             };
             var obj = this.$$doParse(ctx);
             if (ctx.error)
@@ -65,7 +63,7 @@ module sax.xaml.extensions {
             return obj;
         }
 
-        private $$doParse (ctx: IParseContext): any {
+        private $$doParse (ctx: IParseContext<TDoc>): any {
             if (!this.$$parseName(ctx))
                 return undefined;
             if (!this.$$startExtension(ctx))
@@ -80,12 +78,13 @@ module sax.xaml.extensions {
                 }
             }
 
-            var obj = ctx.objs.pop();
-            this.curObject = ctx.objs[ctx.objs.length - 1];
+            var dc = ctx.docCtx;
+            var obj = dc.objectStack.pop();
+            dc.curObject = dc.objectStack[dc.objectStack.length - 1];
             return obj;
         }
 
-        private $$parseName (ctx: IParseContext): boolean {
+        private $$parseName (ctx: IParseContext<TDoc>): boolean {
             var ind = ctx.text.indexOf(" ", ctx.i);
             if (ind > ctx.i) {
                 ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
@@ -102,7 +101,7 @@ module sax.xaml.extensions {
             return false;
         }
 
-        private $$startExtension (ctx: IParseContext): boolean {
+        private $$startExtension (ctx: IParseContext<TDoc>): boolean {
             var full = ctx.acc;
             var ind = full.indexOf(":");
             var prefix = (ind < 0) ? null : full.substr(0, ind);
@@ -116,14 +115,14 @@ module sax.xaml.extensions {
             }
 
             var type = this.$$onResolveType(uri, name);
-            var obj = this.curObject = this.$$onResolveObject(type);
-            ctx.objs.push(obj);
+            var obj = ctx.docCtx.curObject = this.$$onResolveObject(type);
+            ctx.docCtx.objectStack.push(obj);
             return true;
         }
 
-        private $$parseXExt (ctx: IParseContext, name: string, val: string): boolean {
+        private $$parseXExt (ctx: IParseContext<TDoc>, name: string, val: string): boolean {
             if (name === "Null") {
-                ctx.objs.push(null);
+                ctx.docCtx.objectStack.push(null);
                 return true;
             }
             if (name === "Type") {
@@ -132,18 +131,18 @@ module sax.xaml.extensions {
                 var name = (ind < 0) ? val : val.substr(ind + 1);
                 var uri = ctx.resolver.lookupNamespaceURI(prefix);
                 var type = this.$$onResolveType(uri, name);
-                ctx.objs.push(type);
+                ctx.docCtx.objectStack.push(type);
                 return true;
             }
             if (name === "Static") {
                 var func = new Function("return (" + val + ");");
-                ctx.objs.push(func());
+                ctx.docCtx.objectStack.push(func());
                 return true;
             }
             return true;
         }
 
-        private $$parseKeyValue (ctx: IParseContext): boolean {
+        private $$parseKeyValue (ctx: IParseContext<TDoc>): boolean {
             var text = ctx.text;
             ctx.acc = "";
             var key = "";
@@ -166,11 +165,11 @@ module sax.xaml.extensions {
                     key = ctx.acc;
                     ctx.acc = "";
                 } else if (cur === "}") {
-                    this.$$finishKeyValue(ctx.acc, key, val);
+                    this.$$finishKeyValue(ctx.acc, key, val, ctx.docCtx);
                     return true;
                 } else if (cur === ",") {
                     ctx.i++;
-                    this.$$finishKeyValue(ctx.acc, key, val);
+                    this.$$finishKeyValue(ctx.acc, key, val, ctx.docCtx);
                     return true;
                 } else {
                     ctx.acc += cur;
@@ -178,15 +177,15 @@ module sax.xaml.extensions {
             }
         }
 
-        private $$finishKeyValue (acc: string, key: string, val: any) {
+        private $$finishKeyValue (acc: string, key: string, val: any, docCtx: TDoc) {
             if (val === undefined) {
                 if (!(val = acc.trim()))
                     return;
             }
             if (!key) {
-                this.curObject.init(val);
+                docCtx.curObject.init(val);
             } else {
-                this.curObject[key] = val;
+                docCtx.curObject[key] = val;
             }
         }
 
@@ -196,22 +195,22 @@ module sax.xaml.extensions {
                 .onError(this.$$onError);
         }
 
-        onResolveType (cb?: events.IResolveType): ExtensionParser {
+        onResolveType (cb?: events.IResolveType): ExtensionParser<TDoc> {
             this.$$onResolveType = cb || ((xmlns, name) => Object);
             return this;
         }
 
-        onResolveObject (cb?: events.IResolveObject): ExtensionParser {
+        onResolveObject (cb?: events.IResolveObject): ExtensionParser<TDoc> {
             this.$$onResolveObject = cb || ((type) => new type());
             return this;
         }
 
-        onError (cb?: events.IError): ExtensionParser {
+        onError (cb?: events.IError): ExtensionParser<TDoc> {
             this.$$onError = cb || ((e) => true);
             return this;
         }
 
-        onEnd (cb: () => any): ExtensionParser {
+        onEnd (cb: () => any): ExtensionParser<TDoc> {
             this.$$onEnd = cb;
             return this;
         }

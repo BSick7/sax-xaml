@@ -9,7 +9,7 @@ module sax.xaml.extensions.tests.basic {
         }
     }
 
-    var parser = new ExtensionParser()
+    var parser = new ExtensionParser<IDocumentContext>()
         .onResolveType((xmlns, name) => {
             if (xmlns === sax.xaml.DEFAULT_XMLNS && name === "StaticResource")
                 return StaticResource;
@@ -27,18 +27,24 @@ module sax.xaml.extensions.tests.basic {
                     return "";
                 }
             };
+        },
+        docCtx: function (): IDocumentContext {
+            return {
+                curObject: undefined,
+                objectStack: []
+            };
         }
     };
 
     QUnit.test("StaticResource (implicit)", () => {
-        var val = parser.parse("{StaticResource SomeStyle}", mock.resolver());
+        var val = parser.parse("{StaticResource SomeStyle}", mock.resolver(), mock.docCtx());
         var expected = new StaticResource();
         expected.ResourceKey = "SomeStyle";
         deepEqual(val, expected);
     });
 
     QUnit.test("StaticResource (Property)", () => {
-        var val = parser.parse("{StaticResource ResourceKey=Some\\{Style}", mock.resolver());
+        var val = parser.parse("{StaticResource ResourceKey=Some\\{Style}", mock.resolver(), mock.docCtx());
         var expected = new StaticResource();
         expected.ResourceKey = "Some{Style";
         deepEqual(val, expected);
