@@ -51,7 +51,7 @@ declare module sax.xaml {
         interface IResolveType {
             (xmlns: string, name: string): any;
         }
-        interface IObjectResolve {
+        interface IResolveObject {
             (type: any): any;
         }
         interface IObject {
@@ -82,7 +82,7 @@ declare module sax.xaml {
     }
     class Parser<T extends IDocumentContext> {
         private $$onResolveType;
-        private $$onObjectResolve;
+        private $$onResolveObject;
         private $$onObject;
         private $$onObjectEnd;
         private $$onContentObject;
@@ -98,6 +98,7 @@ declare module sax.xaml {
         private $$xXmlns;
         constructor();
         public setNamespaces(defaultXmlns: string, xXmlns: string): Parser<T>;
+        public createExtensionParser(): extensions.ExtensionParser<T>;
         public createContext(): T;
         public parse(el: Element): Parser<T>;
         private $$handleElement(el, ctx, isContent);
@@ -107,7 +108,7 @@ declare module sax.xaml {
         private $$getAttrValue(attr, ctx);
         private $$ensure();
         public onResolveType(cb?: events.IResolveType): Parser<T>;
-        public onObjectResolve(cb?: events.IObjectResolve): Parser<T>;
+        public onResolveObject(cb?: events.IResolveObject): Parser<T>;
         public onObject(cb?: events.IObject): Parser<T>;
         public onObjectEnd(cb?: events.IObject): Parser<T>;
         public onContentObject(cb?: events.IObject): Parser<T>;

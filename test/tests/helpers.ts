@@ -35,7 +35,7 @@ module sax.xaml.tests {
                         type: type
                     });
                     return type;
-                }).onObjectResolve((type) => {
+                }).onResolveObject((type) => {
                     var obj = new type();
                     cmds.push({
                         cmd: 'or',

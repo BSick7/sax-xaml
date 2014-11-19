@@ -185,7 +185,6 @@ var sax;
 
                 ExtensionParser.prototype.onError = function (cb) {
                     this.$$onError = cb || (function (e) {
-                        return true;
                     });
                     return this;
                 };
@@ -217,7 +216,7 @@ var sax;
         var Parser = (function () {
             function Parser() {
                 this.$$onEnd = null;
-                this.extension = new xaml.extensions.ExtensionParser();
+                this.extension = this.createExtensionParser();
                 this.setNamespaces(xaml.DEFAULT_XMLNS, xaml.DEFAULT_XMLNS_X);
             }
             Parser.prototype.setNamespaces = function (defaultXmlns, xXmlns) {
@@ -225,6 +224,10 @@ var sax;
                 this.$$xXmlns = xXmlns;
                 this.extension.setNamespaces(defaultXmlns, xXmlns);
                 return this;
+            };
+
+            Parser.prototype.createExtensionParser = function () {
+                return new xaml.extensions.ExtensionParser();
             };
 
             Parser.prototype.createContext = function () {
@@ -251,7 +254,7 @@ var sax;
                     return;
 
                 var type = this.$$onResolveType(xmlns, name);
-                var obj = ctx.curObject = this.$$onObjectResolve(type);
+                var obj = ctx.curObject = this.$$onResolveObject(type);
                 ctx.objectStack.push(obj);
 
                 if (isContent) {
@@ -345,7 +348,8 @@ var sax;
             };
 
             Parser.prototype.$$ensure = function () {
-                this.onResolveType(this.$$onResolveType).onObjectResolve(this.$$onObjectResolve).onObject(this.$$onObject).onObjectEnd(this.$$onObjectEnd).onContentObject(this.$$onContentObject).onContentText(this.$$onContentText).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
+                this.onResolveType(this.$$onResolveType).onResolveObject(this.$$onResolveObject).onObject(this.$$onObject).onObjectEnd(this.$$onObjectEnd).onContentObject(this.$$onContentObject).onContentText(this.$$onContentText).onName(this.$$onName).onKey(this.$$onKey).onPropertyStart(this.$$onPropertyStart).onPropertyEnd(this.$$onPropertyEnd).onError(this.$$onError);
+                this.extension.onResolveType(this.$$onResolveType).onResolveObject(this.$$onResolveObject);
             };
 
             Parser.prototype.onResolveType = function (cb) {
@@ -355,8 +359,8 @@ var sax;
                 return this;
             };
 
-            Parser.prototype.onObjectResolve = function (cb) {
-                this.$$onObjectResolve = cb || (function (type) {
+            Parser.prototype.onResolveObject = function (cb) {
+                this.$$onResolveObject = cb || (function (type) {
                     return new type();
                 });
                 return this;

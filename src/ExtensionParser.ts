@@ -206,7 +206,7 @@ module sax.xaml.extensions {
         }
 
         onError (cb?: events.IError): ExtensionParser<TDoc> {
-            this.$$onError = cb || ((e) => true);
+            this.$$onError = cb || ((e) => { });
             return this;
         }
 

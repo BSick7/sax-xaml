@@ -8,7 +8,7 @@ module sax.xaml {
         export interface IResolveType {
             (xmlns: string, name: string): any;
         }
-        export interface IObjectResolve {
+        export interface IResolveObject {
             (type: any): any;
         }
         export interface IObject {
@@ -41,7 +41,7 @@ module sax.xaml {
 
     export class Parser<T extends IDocumentContext> {
         private $$onResolveType: events.IResolveType;
-        private $$onObjectResolve: events.IObjectResolve;
+        private $$onResolveObject: events.IResolveObject;
         private $$onObject: events.IObject;
         private $$onObjectEnd: events.IObject;
         private $$onContentObject: events.IObject;
@@ -53,12 +53,13 @@ module sax.xaml {
         private $$onError: events.IError;
         private $$onEnd: () => any = null;
 
-        extension = new extensions.ExtensionParser<T>();
+        extension: extensions.ExtensionParser<T>;
 
         private $$defaultXmlns: string;
         private $$xXmlns: string;
 
         constructor () {
+            this.extension = this.createExtensionParser();
             this.setNamespaces(DEFAULT_XMLNS, DEFAULT_XMLNS_X);
         }
 
@@ -67,6 +68,10 @@ module sax.xaml {
             this.$$xXmlns = xXmlns;
             this.extension.setNamespaces(defaultXmlns, xXmlns);
             return this;
+        }
+
+        createExtensionParser (): extensions.ExtensionParser<T> {
+            return new extensions.ExtensionParser<T>();
         }
 
         createContext (): T {
@@ -96,7 +101,7 @@ module sax.xaml {
                 return;
 
             var type = this.$$onResolveType(xmlns, name);
-            var obj = ctx.curObject = this.$$onObjectResolve(type);
+            var obj = ctx.curObject = this.$$onResolveObject(type);
             ctx.objectStack.push(obj);
 
             if (isContent) {
@@ -202,7 +207,7 @@ module sax.xaml {
 
         private $$ensure () {
             this.onResolveType(this.$$onResolveType)
-                .onObjectResolve(this.$$onObjectResolve)
+                .onResolveObject(this.$$onResolveObject)
                 .onObject(this.$$onObject)
                 .onObjectEnd(this.$$onObjectEnd)
                 .onContentObject(this.$$onContentObject)
@@ -212,6 +217,9 @@ module sax.xaml {
                 .onPropertyStart(this.$$onPropertyStart)
                 .onPropertyEnd(this.$$onPropertyEnd)
                 .onError(this.$$onError);
+            this.extension
+                .onResolveType(this.$$onResolveType)
+                .onResolveObject(this.$$onResolveObject);
         }
 
         onResolveType (cb?: events.IResolveType): Parser<T> {
@@ -219,8 +227,8 @@ module sax.xaml {
             return this;
         }
 
-        onObjectResolve (cb?: events.IObjectResolve): Parser<T> {
-            this.$$onObjectResolve = cb || ((type) => new type());
+        onResolveObject (cb?: events.IResolveObject): Parser<T> {
+            this.$$onResolveObject = cb || ((type) => new type());
             return this;
         }
 
