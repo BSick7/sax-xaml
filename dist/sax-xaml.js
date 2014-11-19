@@ -49,7 +49,6 @@ var sax;
                         if (!this.$$parseKeyValue(ctx))
                             break;
                         if (ctx.text[ctx.i] === "}") {
-                            ctx.i++;
                             break;
                         }
                     }
@@ -157,6 +156,9 @@ var sax;
                     if (val === undefined) {
                         if (!(val = acc.trim()))
                             return;
+                    }
+                    if (typeof val.transmute === "function") {
+                        val = val.transmute(docCtx);
                     }
                     if (!key) {
                         docCtx.curObject.init(val);

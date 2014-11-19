@@ -7,12 +7,26 @@ module sax.xaml.extensions.tests.basic {
         init (val: string) {
             this.ResourceKey = val;
         }
+
+        transmute (ctx: IDocumentContext): any {
+            if (this.ResourceKey === "Two")
+                return 2;
+            return this;
+        }
+    }
+
+    class Random implements IMarkupExtension {
+        Foo: number;
+        init (val: string) {
+        }
     }
 
     var parser = new ExtensionParser<IDocumentContext>()
         .onResolveType((xmlns, name) => {
             if (xmlns === sax.xaml.DEFAULT_XMLNS && name === "StaticResource")
                 return StaticResource;
+            if (xmlns === sax.xaml.DEFAULT_XMLNS && name === "Random")
+                return Random;
             var func = new Function("return function " + name + "() { }");
             return func();
         });
@@ -47,6 +61,13 @@ module sax.xaml.extensions.tests.basic {
         var val = parser.parse("{StaticResource ResourceKey=Some\\{Style}", mock.resolver(), mock.docCtx());
         var expected = new StaticResource();
         expected.ResourceKey = "Some{Style";
+        deepEqual(val, expected);
+    });
+
+    QUnit.test("Subextension", () => {
+        var val = parser.parse("{Random Foo={StaticResource Two}}", mock.resolver(), mock.docCtx());
+        var expected = new Random();
+        expected.Foo = 2;
         deepEqual(val, expected);
     });
 }

@@ -42,6 +42,7 @@ declare module sax.xaml.extensions {
 declare module sax.xaml {
     interface IMarkupExtension {
         init(val: string): any;
+        transmute? (ctx: IDocumentContext): any;
     }
 }
 declare module sax.xaml {

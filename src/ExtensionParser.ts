@@ -73,7 +73,6 @@ module sax.xaml.extensions {
                 if (!this.$$parseKeyValue(ctx))
                     break;
                 if (ctx.text[ctx.i] === "}") {
-                    ctx.i++;
                     break;
                 }
             }
@@ -182,6 +181,9 @@ module sax.xaml.extensions {
                 if (!(val = acc.trim()))
                     return;
             }
+            if (typeof val.transmute === "function") {
+                val = (<IMarkupExtension>val).transmute(docCtx);
+            }
             if (!key) {
                 docCtx.curObject.init(val);
             } else {
@@ -206,7 +208,8 @@ module sax.xaml.extensions {
         }
 
         onError (cb?: events.IError): ExtensionParser<TDoc> {
-            this.$$onError = cb || ((e) => { });
+            this.$$onError = cb || ((e) => {
+            });
             return this;
         }
 
