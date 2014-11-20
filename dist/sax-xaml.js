@@ -8,208 +8,6 @@ var sax;
 var sax;
 (function (sax) {
     (function (xaml) {
-        (function (extensions) {
-            
-
-            var ExtensionParser = (function () {
-                function ExtensionParser() {
-                    this.$$defaultXmlns = "http://schemas.wsick.com/fayde";
-                    this.$$xXmlns = "http://schemas.wsick.com/fayde/x";
-                    this.$$onEnd = null;
-                }
-                ExtensionParser.prototype.setNamespaces = function (defaultXmlns, xXmlns) {
-                    this.$$defaultXmlns = defaultXmlns;
-                    this.$$xXmlns = xXmlns;
-                };
-
-                ExtensionParser.prototype.parse = function (value, resolver, docCtx) {
-                    this.$$ensure();
-                    var ctx = {
-                        text: value,
-                        i: 1,
-                        acc: "",
-                        error: "",
-                        resolver: resolver,
-                        docCtx: docCtx
-                    };
-                    var obj = this.$$doParse(ctx);
-                    if (ctx.error)
-                        this.$$onError(ctx.error);
-                    this.$$destroy();
-                    return obj;
-                };
-
-                ExtensionParser.prototype.$$doParse = function (ctx) {
-                    if (!this.$$parseName(ctx))
-                        return undefined;
-                    if (!this.$$startExtension(ctx))
-                        return undefined;
-
-                    while (ctx.i < ctx.text.length) {
-                        if (!this.$$parseKeyValue(ctx))
-                            break;
-                        if (ctx.text[ctx.i] === "}") {
-                            break;
-                        }
-                    }
-
-                    var dc = ctx.docCtx;
-                    var obj = dc.objectStack.pop();
-                    dc.curObject = dc.objectStack[dc.objectStack.length - 1];
-                    return obj;
-                };
-
-                ExtensionParser.prototype.$$parseName = function (ctx) {
-                    var ind = ctx.text.indexOf(" ", ctx.i);
-                    if (ind > ctx.i) {
-                        ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
-                        ctx.i = ind + 1;
-                        return true;
-                    }
-                    ind = ctx.text.indexOf("}", ctx.i);
-                    if (ind > ctx.i) {
-                        ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
-                        ctx.i = ind;
-                        return true;
-                    }
-                    ctx.error = "Missing closing bracket.";
-                    return false;
-                };
-
-                ExtensionParser.prototype.$$startExtension = function (ctx) {
-                    var full = ctx.acc;
-                    var ind = full.indexOf(":");
-                    var prefix = (ind < 0) ? null : full.substr(0, ind);
-                    var name = (ind < 0) ? full : full.substr(ind + 1);
-                    var uri = ctx.resolver.lookupNamespaceURI(prefix);
-
-                    if (uri === this.$$xXmlns) {
-                        var val = ctx.text.substr(ctx.i, ctx.text.length - ctx.i - 1);
-                        ctx.i = ctx.text.length;
-                        return this.$$parseXExt(ctx, name, val);
-                    }
-
-                    var type = this.$$onResolveType(uri, name);
-                    var obj = ctx.docCtx.curObject = this.$$onResolveObject(type);
-                    ctx.docCtx.objectStack.push(obj);
-                    return true;
-                };
-
-                ExtensionParser.prototype.$$parseXExt = function (ctx, name, val) {
-                    if (name === "Null") {
-                        ctx.docCtx.objectStack.push(null);
-                        return true;
-                    }
-                    if (name === "Type") {
-                        var ind = val.indexOf(":");
-                        var prefix = (ind < 0) ? null : val.substr(0, ind);
-                        var name = (ind < 0) ? val : val.substr(ind + 1);
-                        var uri = ctx.resolver.lookupNamespaceURI(prefix);
-                        var type = this.$$onResolveType(uri, name);
-                        ctx.docCtx.objectStack.push(type);
-                        return true;
-                    }
-                    if (name === "Static") {
-                        var func = new Function("return (" + val + ");");
-                        ctx.docCtx.objectStack.push(func());
-                        return true;
-                    }
-                    return true;
-                };
-
-                ExtensionParser.prototype.$$parseKeyValue = function (ctx) {
-                    var text = ctx.text;
-                    ctx.acc = "";
-                    var key = "";
-                    var val = undefined;
-                    for (; ctx.i < text.length; ctx.i++) {
-                        var cur = text[ctx.i];
-                        if (cur === "\\") {
-                            ctx.i++;
-                            ctx.acc += text[ctx.i];
-                        } else if (cur === "{") {
-                            if (!key) {
-                                ctx.error = "A sub extension must be set to a key.";
-                                return false;
-                            }
-                            ctx.i++;
-                            val = this.$$doParse(ctx);
-                            if (ctx.error)
-                                return false;
-                        } else if (cur === "=") {
-                            key = ctx.acc;
-                            ctx.acc = "";
-                        } else if (cur === "}") {
-                            this.$$finishKeyValue(ctx.acc, key, val, ctx.docCtx);
-                            return true;
-                        } else if (cur === ",") {
-                            ctx.i++;
-                            this.$$finishKeyValue(ctx.acc, key, val, ctx.docCtx);
-                            return true;
-                        } else {
-                            ctx.acc += cur;
-                        }
-                    }
-                };
-
-                ExtensionParser.prototype.$$finishKeyValue = function (acc, key, val, docCtx) {
-                    if (val === undefined) {
-                        if (!(val = acc.trim()))
-                            return;
-                    }
-                    if (typeof val.transmute === "function") {
-                        val = val.transmute(docCtx);
-                    }
-                    if (!key) {
-                        docCtx.curObject.init(val);
-                    } else {
-                        docCtx.curObject[key] = val;
-                    }
-                };
-
-                ExtensionParser.prototype.$$ensure = function () {
-                    this.onResolveType(this.$$onResolveType).onResolveObject(this.$$onResolveObject).onError(this.$$onError);
-                };
-
-                ExtensionParser.prototype.onResolveType = function (cb) {
-                    this.$$onResolveType = cb || (function (xmlns, name) {
-                        return Object;
-                    });
-                    return this;
-                };
-
-                ExtensionParser.prototype.onResolveObject = function (cb) {
-                    this.$$onResolveObject = cb || (function (type) {
-                        return new type();
-                    });
-                    return this;
-                };
-
-                ExtensionParser.prototype.onError = function (cb) {
-                    this.$$onError = cb || (function (e) {
-                    });
-                    return this;
-                };
-
-                ExtensionParser.prototype.onEnd = function (cb) {
-                    this.$$onEnd = cb;
-                    return this;
-                };
-
-                ExtensionParser.prototype.$$destroy = function () {
-                    this.$$onEnd && this.$$onEnd();
-                };
-                return ExtensionParser;
-            })();
-            extensions.ExtensionParser = ExtensionParser;
-        })(xaml.extensions || (xaml.extensions = {}));
-        var extensions = xaml.extensions;
-    })(sax.xaml || (sax.xaml = {}));
-    var xaml = sax.xaml;
-})(sax || (sax = {}));
-var sax;
-(function (sax) {
-    (function (xaml) {
         xaml.DEFAULT_XMLNS = "http://schemas.wsick.com/fayde";
         xaml.DEFAULT_XMLNS_X = "http://schemas.wsick.com/fayde/x";
         var ERROR_XMLNS = "http://www.w3.org/1999/xhtml";
@@ -434,6 +232,208 @@ var sax;
             return Parser;
         })();
         xaml.Parser = Parser;
+    })(sax.xaml || (sax.xaml = {}));
+    var xaml = sax.xaml;
+})(sax || (sax = {}));
+var sax;
+(function (sax) {
+    (function (xaml) {
+        (function (extensions) {
+            
+
+            var ExtensionParser = (function () {
+                function ExtensionParser() {
+                    this.$$defaultXmlns = "http://schemas.wsick.com/fayde";
+                    this.$$xXmlns = "http://schemas.wsick.com/fayde/x";
+                    this.$$onEnd = null;
+                }
+                ExtensionParser.prototype.setNamespaces = function (defaultXmlns, xXmlns) {
+                    this.$$defaultXmlns = defaultXmlns;
+                    this.$$xXmlns = xXmlns;
+                };
+
+                ExtensionParser.prototype.parse = function (value, resolver, docCtx) {
+                    this.$$ensure();
+                    var ctx = {
+                        text: value,
+                        i: 1,
+                        acc: "",
+                        error: "",
+                        resolver: resolver,
+                        docCtx: docCtx
+                    };
+                    var obj = this.$$doParse(ctx);
+                    if (ctx.error)
+                        this.$$onError(ctx.error);
+                    this.$$destroy();
+                    return obj;
+                };
+
+                ExtensionParser.prototype.$$doParse = function (ctx) {
+                    if (!this.$$parseName(ctx))
+                        return undefined;
+                    if (!this.$$startExtension(ctx))
+                        return undefined;
+
+                    while (ctx.i < ctx.text.length) {
+                        if (!this.$$parseKeyValue(ctx))
+                            break;
+                        if (ctx.text[ctx.i] === "}") {
+                            break;
+                        }
+                    }
+
+                    var dc = ctx.docCtx;
+                    var obj = dc.objectStack.pop();
+                    dc.curObject = dc.objectStack[dc.objectStack.length - 1];
+                    return obj;
+                };
+
+                ExtensionParser.prototype.$$parseName = function (ctx) {
+                    var ind = ctx.text.indexOf(" ", ctx.i);
+                    if (ind > ctx.i) {
+                        ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
+                        ctx.i = ind + 1;
+                        return true;
+                    }
+                    ind = ctx.text.indexOf("}", ctx.i);
+                    if (ind > ctx.i) {
+                        ctx.acc = ctx.text.substr(ctx.i, ind - ctx.i);
+                        ctx.i = ind;
+                        return true;
+                    }
+                    ctx.error = "Missing closing bracket.";
+                    return false;
+                };
+
+                ExtensionParser.prototype.$$startExtension = function (ctx) {
+                    var full = ctx.acc;
+                    var ind = full.indexOf(":");
+                    var prefix = (ind < 0) ? null : full.substr(0, ind);
+                    var name = (ind < 0) ? full : full.substr(ind + 1);
+                    var uri = ctx.resolver.lookupNamespaceURI(prefix);
+
+                    if (uri === this.$$xXmlns) {
+                        var val = ctx.text.substr(ctx.i, ctx.text.length - ctx.i - 1);
+                        ctx.i = ctx.text.length;
+                        return this.$$parseXExt(ctx, name, val);
+                    }
+
+                    var type = this.$$onResolveType(uri, name);
+                    var obj = ctx.docCtx.curObject = this.$$onResolveObject(type);
+                    ctx.docCtx.objectStack.push(obj);
+                    return true;
+                };
+
+                ExtensionParser.prototype.$$parseXExt = function (ctx, name, val) {
+                    if (name === "Null") {
+                        ctx.docCtx.objectStack.push(null);
+                        return true;
+                    }
+                    if (name === "Type") {
+                        var ind = val.indexOf(":");
+                        var prefix = (ind < 0) ? null : val.substr(0, ind);
+                        var name = (ind < 0) ? val : val.substr(ind + 1);
+                        var uri = ctx.resolver.lookupNamespaceURI(prefix);
+                        var type = this.$$onResolveType(uri, name);
+                        ctx.docCtx.objectStack.push(type);
+                        return true;
+                    }
+                    if (name === "Static") {
+                        var func = new Function("return (" + val + ");");
+                        ctx.docCtx.objectStack.push(func());
+                        return true;
+                    }
+                    return true;
+                };
+
+                ExtensionParser.prototype.$$parseKeyValue = function (ctx) {
+                    var text = ctx.text;
+                    ctx.acc = "";
+                    var key = "";
+                    var val = undefined;
+                    for (; ctx.i < text.length; ctx.i++) {
+                        var cur = text[ctx.i];
+                        if (cur === "\\") {
+                            ctx.i++;
+                            ctx.acc += text[ctx.i];
+                        } else if (cur === "{") {
+                            if (!key) {
+                                ctx.error = "A sub extension must be set to a key.";
+                                return false;
+                            }
+                            ctx.i++;
+                            val = this.$$doParse(ctx);
+                            if (ctx.error)
+                                return false;
+                        } else if (cur === "=") {
+                            key = ctx.acc;
+                            ctx.acc = "";
+                        } else if (cur === "}") {
+                            this.$$finishKeyValue(ctx.acc, key, val, ctx.docCtx);
+                            return true;
+                        } else if (cur === ",") {
+                            ctx.i++;
+                            this.$$finishKeyValue(ctx.acc, key, val, ctx.docCtx);
+                            return true;
+                        } else {
+                            ctx.acc += cur;
+                        }
+                    }
+                };
+
+                ExtensionParser.prototype.$$finishKeyValue = function (acc, key, val, docCtx) {
+                    if (val === undefined) {
+                        if (!(val = acc.trim()))
+                            return;
+                    }
+                    if (typeof val.transmute === "function") {
+                        val = val.transmute(docCtx);
+                    }
+                    if (!key) {
+                        docCtx.curObject.init(val);
+                    } else {
+                        docCtx.curObject[key] = val;
+                    }
+                };
+
+                ExtensionParser.prototype.$$ensure = function () {
+                    this.onResolveType(this.$$onResolveType).onResolveObject(this.$$onResolveObject).onError(this.$$onError);
+                };
+
+                ExtensionParser.prototype.onResolveType = function (cb) {
+                    this.$$onResolveType = cb || (function (xmlns, name) {
+                        return Object;
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onResolveObject = function (cb) {
+                    this.$$onResolveObject = cb || (function (type) {
+                        return new type();
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onError = function (cb) {
+                    this.$$onError = cb || (function (e) {
+                    });
+                    return this;
+                };
+
+                ExtensionParser.prototype.onEnd = function (cb) {
+                    this.$$onEnd = cb;
+                    return this;
+                };
+
+                ExtensionParser.prototype.$$destroy = function () {
+                    this.$$onEnd && this.$$onEnd();
+                };
+                return ExtensionParser;
+            })();
+            extensions.ExtensionParser = ExtensionParser;
+        })(xaml.extensions || (xaml.extensions = {}));
+        var extensions = xaml.extensions;
     })(sax.xaml || (sax.xaml = {}));
     var xaml = sax.xaml;
 })(sax || (sax = {}));

@@ -1,44 +1,6 @@
 declare module sax.xaml {
     var version: string;
 }
-declare module sax.xaml.extensions {
-    module events {
-        interface IResolveType {
-            (xmlns: string, name: string): any;
-        }
-        interface IResolveObject {
-            (type: any): any;
-        }
-        interface IError {
-            (e: Error): any;
-        }
-    }
-    interface INamespacePrefixResolver {
-        lookupNamespaceURI(prefix: string): string;
-    }
-    class ExtensionParser<TDoc extends IDocumentContext> {
-        private $$defaultXmlns;
-        private $$xXmlns;
-        private $$onResolveType;
-        private $$onResolveObject;
-        private $$onError;
-        private $$onEnd;
-        public setNamespaces(defaultXmlns: string, xXmlns: string): void;
-        public parse(value: string, resolver: INamespacePrefixResolver, docCtx: TDoc): any;
-        private $$doParse(ctx);
-        private $$parseName(ctx);
-        private $$startExtension(ctx);
-        private $$parseXExt(ctx, name, val);
-        private $$parseKeyValue(ctx);
-        private $$finishKeyValue(acc, key, val, docCtx);
-        private $$ensure();
-        public onResolveType(cb?: events.IResolveType): ExtensionParser<TDoc>;
-        public onResolveObject(cb?: events.IResolveObject): ExtensionParser<TDoc>;
-        public onError(cb?: events.IError): ExtensionParser<TDoc>;
-        public onEnd(cb: () => any): ExtensionParser<TDoc>;
-        private $$destroy();
-    }
-}
 declare module sax.xaml {
     interface IMarkupExtension {
         init(val: string): any;
@@ -120,6 +82,44 @@ declare module sax.xaml {
         public onPropertyEnd(cb?: events.IPropertyEnd): Parser<T>;
         public onError(cb?: events.IError): Parser<T>;
         public onEnd(cb: () => any): Parser<T>;
+        private $$destroy();
+    }
+}
+declare module sax.xaml.extensions {
+    module events {
+        interface IResolveType {
+            (xmlns: string, name: string): any;
+        }
+        interface IResolveObject {
+            (type: any): any;
+        }
+        interface IError {
+            (e: Error): any;
+        }
+    }
+    interface INamespacePrefixResolver {
+        lookupNamespaceURI(prefix: string): string;
+    }
+    class ExtensionParser<TDoc extends IDocumentContext> {
+        private $$defaultXmlns;
+        private $$xXmlns;
+        private $$onResolveType;
+        private $$onResolveObject;
+        private $$onError;
+        private $$onEnd;
+        public setNamespaces(defaultXmlns: string, xXmlns: string): void;
+        public parse(value: string, resolver: INamespacePrefixResolver, docCtx: TDoc): any;
+        private $$doParse(ctx);
+        private $$parseName(ctx);
+        private $$startExtension(ctx);
+        private $$parseXExt(ctx, name, val);
+        private $$parseKeyValue(ctx);
+        private $$finishKeyValue(acc, key, val, docCtx);
+        private $$ensure();
+        public onResolveType(cb?: events.IResolveType): ExtensionParser<TDoc>;
+        public onResolveObject(cb?: events.IResolveObject): ExtensionParser<TDoc>;
+        public onError(cb?: events.IError): ExtensionParser<TDoc>;
+        public onEnd(cb: () => any): ExtensionParser<TDoc>;
         private $$destroy();
     }
 }
