@@ -9,7 +9,7 @@ module sax.xaml.iterator {
         var cur = el;
         var stack: Element[] = [];
         while (cur) {
-            sax.onElementEnd(cur);
+            sax.onElementStart(cur);
             stack.push(cur);
 
             for (var i = 0, attrs = cur.attributes, len = attrs.length; i < len; i++) {

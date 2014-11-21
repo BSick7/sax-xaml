@@ -443,6 +443,173 @@ var sax;
     var xaml = sax.xaml;
 })(sax || (sax = {}));
 var sax;
+(function (sax) {
+    (function (xaml) {
+        (function (iterator) {
+            var IterativeParser = (function () {
+                function IterativeParser() {
+                    this.$$listener = null;
+                    this.extension = this.createExtensionParser();
+                    this.setNamespaces(xaml.DEFAULT_XMLNS, xaml.DEFAULT_XMLNS_X);
+                }
+                IterativeParser.prototype.setNamespaces = function (defaultXmlns, xXmlns) {
+                    this.$$defaultXmlns = defaultXmlns;
+                    this.$$xXmlns = xXmlns;
+                    this.extension.setNamespaces(defaultXmlns, xXmlns);
+                    return this;
+                };
+
+                IterativeParser.prototype.createExtensionParser = function () {
+                    return new xaml.extensions.ExtensionParser();
+                };
+
+                IterativeParser.prototype.parse = function (el) {
+                    if (!this.$$listener)
+                        this.on({});
+                    iterator.fullparse(el, this.$$listener, { XmlnsX: this.$$xXmlns }, this.extension);
+                    return this;
+                };
+
+                IterativeParser.prototype.on = function (listener) {
+                    this.$$listener = iterator.createListener(listener);
+                    return this;
+                };
+                return IterativeParser;
+            })();
+            iterator.IterativeParser = IterativeParser;
+        })(xaml.iterator || (xaml.iterator = {}));
+        var iterator = xaml.iterator;
+    })(sax.xaml || (sax.xaml = {}));
+    var xaml = sax.xaml;
+})(sax || (sax = {}));
+var sax;
+(function (sax) {
+    (function (xaml) {
+        (function (iterator) {
+            function createListener(xsax) {
+                return {
+                    onResolveType: xsax.onResolveType || (function (uri, name) {
+                        return Object;
+                    }),
+                    onResolveObject: xsax.onResolveObject || (function (type) {
+                        return new (type)();
+                    }),
+                    onObject: xsax.onObject || (function (obj) {
+                    }),
+                    onObjectEnd: xsax.onObjectEnd || (function (obj) {
+                    }),
+                    onContentObject: xsax.onContentObject || (function (obj) {
+                    }),
+                    onContentText: xsax.onContentText || (function (text) {
+                    }),
+                    onName: xsax.onName || (function (name) {
+                    }),
+                    onKey: xsax.onKey || (function (key) {
+                    }),
+                    onPropertyStart: xsax.onPropertyStart || (function (ownerType, propName) {
+                    }),
+                    onPropertyEnd: xsax.onPropertyEnd || (function (ownerType, propName) {
+                    }),
+                    onError: xsax.onError || (function (e) {
+                        return true;
+                    }),
+                    onEnd: xsax.onEnd || (function () {
+                    })
+                };
+            }
+            iterator.createListener = createListener;
+
+            function fullparse(el, listener, opts, extensionParser) {
+                var items = [];
+
+                function parseExtension(val, attr) {
+                    extensionParser.parse(val, attr, items);
+                }
+
+                iterator.parse(el, {
+                    onElementStart: function (el) {
+                        var uri = el.namespaceURI;
+                        var name = el.localName;
+                        var ind = name.indexOf('.');
+                        var type;
+                        if (ind > -1) {
+                            type = listener.onResolveType(uri, name.substr(0, ind));
+                            name = name.substr(ind + 1);
+                            items.push({ $$prop$$: true, type: type, name: name });
+                            listener.onPropertyStart(type, name);
+                        } else {
+                            type = listener.onResolveType(uri, name);
+                            var obj = listener.onResolveObject(type);
+                            var prev = items[items.length - 1];
+                            items.push(obj);
+                            (!prev || prev.$$prop$$) ? listener.onContentObject(obj) : listener.onObject(obj);
+                        }
+                    },
+                    onElementEnd: function (el) {
+                        var item = items.pop();
+                        if (item.$$prop$$) {
+                            listener.onPropertyEnd(item.type, item.name);
+                        } else {
+                            listener.onObjectEnd(item);
+                        }
+                    },
+                    onAttribute: function (attr) {
+                        var prefix = attr.prefix;
+                        var name = attr.localName;
+                        if (skipNsAttr(prefix, name))
+                            return;
+                        var uri = attr.namespaceURI;
+                        var value = attr.value;
+                        if (uri === opts.XmlnsX) {
+                            handleXAttr(uri, name, value, listener);
+                        } else {
+                            handleAttr(uri, name, value, attr, parseExtension, listener);
+                        }
+                    }
+                });
+                listener.onEnd();
+            }
+            iterator.fullparse = fullparse;
+
+            function skipNsAttr(prefix, name) {
+                if (prefix === "xmlns")
+                    return true;
+                return (!prefix && name === "xmlns");
+            }
+
+            function handleXAttr(uri, name, value, listener) {
+                if (name === "Name")
+                    listener.onName(value);
+                if (name === "Key")
+                    listener.onKey(value);
+            }
+
+            function handleAttr(uri, name, value, attr, eparse, listener) {
+                var type = null;
+                var name = name;
+                var ind = name.indexOf('.');
+                if (ind > -1) {
+                    type = listener.onResolveType(uri, name.substr(0, ind));
+                    name = name.substr(ind + 1);
+                }
+                listener.onPropertyStart(type, name);
+                var val = getAttrValue(value, attr, eparse);
+                listener.onObject(val);
+                listener.onObjectEnd(val);
+                listener.onPropertyEnd(type, name);
+            }
+
+            function getAttrValue(val, attr, eparse) {
+                if (val[0] !== "{")
+                    return val;
+                return eparse(val, attr);
+            }
+        })(xaml.iterator || (xaml.iterator = {}));
+        var iterator = xaml.iterator;
+    })(sax.xaml || (sax.xaml = {}));
+    var xaml = sax.xaml;
+})(sax || (sax = {}));
+var sax;
 (function (_sax) {
     (function (xaml) {
         (function (iterator) {
@@ -450,7 +617,7 @@ var sax;
                 var cur = el;
                 var stack = [];
                 while (cur) {
-                    sax.onElementEnd(cur);
+                    sax.onElementStart(cur);
                     stack.push(cur);
 
                     for (var i = 0, attrs = cur.attributes, len = attrs.length; i < len; i++) {

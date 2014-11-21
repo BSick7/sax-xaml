@@ -123,6 +123,69 @@ declare module sax.xaml.extensions {
     }
 }
 declare module sax.xaml.iterator {
+    class IterativeParser {
+        private $$listener;
+        private $$defaultXmlns;
+        private $$xXmlns;
+        public extension: extensions.ExtensionParser;
+        constructor();
+        public setNamespaces(defaultXmlns: string, xXmlns: string): IterativeParser;
+        public createExtensionParser(): extensions.ExtensionParser;
+        public parse(el: Element): IterativeParser;
+        public on(listener: IXamlSax): IterativeParser;
+    }
+}
+declare module sax.xaml.iterator {
+    module events {
+        interface IResolveType {
+            (xmlns: string, name: string): any;
+        }
+        interface IResolveObject {
+            (type: any): any;
+        }
+        interface IObject {
+            (obj: any): any;
+        }
+        interface IText {
+            (text: string): any;
+        }
+        interface IName {
+            (name: string): any;
+        }
+        interface IKey {
+            (key: string): any;
+        }
+        interface IPropertyStart {
+            (ownerType: any, propName: string): any;
+        }
+        interface IPropertyEnd {
+            (ownerType: any, propName: string): any;
+        }
+        interface IError {
+            (e: Error): boolean;
+        }
+    }
+    interface IXamlSax {
+        onResolveType?: events.IResolveType;
+        onResolveObject?: events.IResolveObject;
+        onObject?: events.IObject;
+        onObjectEnd?: events.IObject;
+        onContentObject?: events.IObject;
+        onContentText?: events.IText;
+        onName?: events.IName;
+        onKey?: events.IKey;
+        onPropertyStart?: events.IPropertyStart;
+        onPropertyEnd?: events.IPropertyEnd;
+        onError?: events.IError;
+        onEnd?: () => any;
+    }
+    function createListener(xsax: IXamlSax): IXamlSax;
+    interface IOpts {
+        XmlnsX: string;
+    }
+    function fullparse(el: Element, listener: IXamlSax, opts: IOpts, extensionParser: extensions.ExtensionParser): void;
+}
+declare module sax.xaml.iterator {
     interface IXmlSax {
         onElementStart(el: Element): any;
         onElementEnd(el: Element): any;
