@@ -4,6 +4,16 @@
       "name": "Metro Theme",
       "test": "tests/Metro",
       "runCount": 10
+    },
+    {
+      "name": "Push/Pop",
+      "test": "tests/pop",
+      "runCount": 1000
+    },
+    {
+      "name": "Unshift/Shift",
+      "test": "tests/shift",
+      "runCount": 1000
     }
   ]
 }
