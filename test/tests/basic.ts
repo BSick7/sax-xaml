@@ -3,7 +3,7 @@ module sax.xaml.tests.basic {
 
     QUnit.asyncTest("No callbacks - Graceful", () => {
         getDoc("docs/basic.xml", (doc) => {
-            var parser = new Parser<IDocumentContext>()
+            var parser = new Parser()
                 .onEnd(() => {
                     QUnit.start();
                     ok(true);

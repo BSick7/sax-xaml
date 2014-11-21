@@ -34,12 +34,35 @@ module sax.xaml {
         }
     }
 
-    export interface IDocumentContext {
-        curObject: any;
-        objectStack: any[];
+    interface INextElement {
+        count: number;
+        next: Element;
+    }
+    function findNext (curEl: Element): INextElement {
+        var count = 0;
+        var next = curEl.firstElementChild;
+        if (next) {
+            return {
+                count: count,
+                next: next
+            };
+        } else {
+            next = curEl;
+            while (!next.nextElementSibling) {
+                next = (<any>next).parentElement;
+                if (!next)
+                    break;
+                count++;
+            }
+            count++;
+            return {
+                count: count,
+                next: next ? next.nextElementSibling : null
+            };
+        }
     }
 
-    export class Parser<T extends IDocumentContext> {
+    export class Parser {
         private $$onResolveType: events.IResolveType;
         private $$onResolveObject: events.IResolveObject;
         private $$onObject: events.IObject;
@@ -53,7 +76,7 @@ module sax.xaml {
         private $$onError: events.IError;
         private $$onEnd: () => any = null;
 
-        extension: extensions.ExtensionParser<T>;
+        extension: extensions.ExtensionParser;
 
         private $$defaultXmlns: string;
         private $$xXmlns: string;
@@ -63,79 +86,65 @@ module sax.xaml {
             this.setNamespaces(DEFAULT_XMLNS, DEFAULT_XMLNS_X);
         }
 
-        setNamespaces (defaultXmlns: string, xXmlns: string): Parser<T> {
+        setNamespaces (defaultXmlns: string, xXmlns: string): Parser {
             this.$$defaultXmlns = defaultXmlns;
             this.$$xXmlns = xXmlns;
             this.extension.setNamespaces(defaultXmlns, xXmlns);
             return this;
         }
 
-        createExtensionParser (): extensions.ExtensionParser<T> {
-            return new extensions.ExtensionParser<T>();
+        createExtensionParser (): extensions.ExtensionParser {
+            return new extensions.ExtensionParser();
         }
 
-        createContext (): T {
-            return <T>{
-                curObject: undefined,
-                objectStack: []
-            };
-        }
-
-        parse (el: Element): Parser<T> {
+        parse (el: Element): Parser {
             this.$$ensure();
-            var ctx = this.createContext();
-            this.$$handleElement(el, ctx, true);
+            this.$$doParse(el);
             this.$$destroy();
             return this;
         }
 
-        private $$handleElement (el: Element, ctx: T, isContent: boolean) {
-            // NOTE: Handle tag open
-            //  <[ns:]Type.Name>
-            //  <[ns:]Type>
-            var name = el.localName;
-            var xmlns = el.namespaceURI;
-            if (this.$$tryHandleError(el, xmlns, name))
-                return;
-            if (this.$$tryHandlePropertyTag(el, ctx, xmlns, name))
-                return;
+        private $$doParse (el: Element) {
+            var insideProp = false;
+            var os: IObjectStackItem[] = [];
+            var mctx = createMarkupContext(os);
 
-            var type = this.$$onResolveType(xmlns, name);
-            var obj = ctx.curObject = this.$$onResolveObject(type);
-            ctx.objectStack.push(obj);
+            var cur = el;
+            while (cur) {
+                var uri = cur.namespaceURI;
+                var name = cur.localName;
+                if (this.$$tryHandleError(cur, uri, name))
+                    break;
+                var x = this.$$tryStartProperty(uri, name);
+                if (x.prop) {
+                    os.push(x);
+                    insideProp = true;
+                } else {
+                    if (!insideProp && os.length > 0)
+                        os[os.length - 1].text = null;
+                    os.push(this.$$startObject(uri, name, !insideProp, cur.textContent));
+                    insideProp = false;
 
-            if (isContent) {
-                this.$$onContentObject(obj);
-            } else {
-                this.$$onObject(obj);
+                    for (var i = 0, attrs = cur.attributes; i < attrs.length; i++) {
+                        this.$$processAttr(attrs[i], mctx);
+                    }
+                }
+
+                var y = findNext(cur);
+                cur = y.next;
+                for (var i = y.count; i > 0; i--) {
+                    var item = os.pop();
+                    insideProp = item.prop;
+                    if (insideProp) {
+                        this.$$onPropertyEnd(item.type, item.name);
+                    } else {
+                        var text = item.text;
+                        if (text && (text = text.trim()))
+                            this.$$onContentText(text);
+                        this.$$onObjectEnd(item.obj);
+                    }
+                }
             }
-
-            // NOTE: Walk attributes
-            for (var i = 0, attrs = el.attributes, len = attrs.length; i < len; i++) {
-                this.$$handleAttribute(attrs[i], ctx);
-            }
-
-            // NOTE: Walk Children
-            var child = el.firstElementChild;
-            var hasChildren = !!child;
-            while (child) {
-                this.$$handleElement(child, ctx, true);
-                child = child.nextElementSibling;
-            }
-
-            // NOTE: If we did not hit a child tag, use text content
-            if (!hasChildren) {
-                var text = el.textContent;
-                if (text)
-                    this.$$onContentText(text.trim());
-            }
-
-            // NOTE: Handle tag close
-            //  </[ns:]Type.Name>
-            //  </[ns:]Type>
-            ctx.objectStack.pop();
-            this.$$onObjectEnd(obj);
-            ctx.curObject = ctx.objectStack[ctx.objectStack.length - 1];
         }
 
         private $$tryHandleError (el: Element, xmlns: string, name: string): boolean {
@@ -145,64 +154,96 @@ module sax.xaml {
             return true;
         }
 
-        private $$tryHandlePropertyTag (el: Element, ctx: T, xmlns: string, name: string): boolean {
+        private $$tryStartProperty (uri: string, name: string): IObjectStackItem {
             var ind = name.indexOf('.');
-            if (ind < 0)
-                return false;
+            if (ind < 0) {
+                return {
+                    prop: false,
+                    type: null,
+                    name: name,
+                    obj: null,
+                    text: null
+                };
+            }
 
-            var type = this.$$onResolveType(xmlns, name.substr(0, ind));
+            var type = this.$$onResolveType(uri, name.substr(0, ind));
             name = name.substr(ind + 1);
 
             this.$$onPropertyStart(type, name);
+            return {
+                prop: true,
+                type: type,
+                name: name,
+                obj: null,
+                text: null
+            };
+        }
 
-            var child = el.firstElementChild;
-            while (child) {
-                this.$$handleElement(child, ctx, false);
-                child = child.nextElementSibling;
+        private $$startObject (uri: string, name: string, isContent: boolean, text: string): IObjectStackItem {
+            var type = this.$$onResolveType(uri, name);
+            var obj = this.$$onResolveObject(type);
+            if (isContent) {
+                this.$$onContentObject(obj);
+            } else {
+                this.$$onObject(obj);
             }
+            return {
+                type: type,
+                name: name,
+                prop: false,
+                obj: obj,
+                text: text
+            }
+        }
 
-            this.$$onPropertyEnd(type, name);
+        private $$processAttr (attr: Attr, mctx: IMarkupContext): boolean {
+            var prefix = attr.prefix;
+            var uri = attr.namespaceURI;
+            var name = attr.localName;
+            if (this.$$shouldSkipAttr(prefix, uri, name))
+                return true;
+            var value = attr.value;
+            mctx.attr = attr;
+            return this.$$tryHandleXAttribute(uri, name, value)
+                || this.$$tryHandleAttribute(uri, name, value, mctx);
+        }
 
+        private $$shouldSkipAttr (prefix: string, uri: string, name: string): boolean {
+            if (prefix === "xmlns")
+                return true;
+            return (!prefix && name === "xmlns");
+        }
+
+        private $$tryHandleXAttribute (uri: string, name: string, value: string): boolean {
+            //  ... x:Name="..."
+            //  ... x:Key="..."
+            if (uri !== this.$$xXmlns)
+                return false;
+            if (name === "Name")
+                this.$$onName(value);
+            else if (name === "Key")
+                this.$$onName(value);
             return true;
         }
 
-        private $$handleAttribute (attr: Attr, ctx: T) {
+        private $$tryHandleAttribute (uri: string, name: string, value: string, mctx: IMarkupContext): boolean {
             // NOTE:
             //  ... [ns:]Type.Name="..."
-            //  ... x:Name="..."
-            //  ... x:Key="..."
             //  ... Name="..."
-            if (attr.prefix === "xmlns")
-                return;
-            var name = attr.localName;
-            if (!attr.prefix && name === "xmlns")
-                return;
-            var xmlns = attr.namespaceURI;
-            if (xmlns === this.$$xXmlns) {
-                if (name === "Name")
-                    return this.$$onName(this.$$getAttrValue(attr, ctx));
-                if (name === "Key")
-                    return this.$$onKey(this.$$getAttrValue(attr, ctx));
-            }
             var type = null;
-            var name = name;
             var ind = name.indexOf('.');
             if (ind > -1) {
-                type = this.$$onResolveType(xmlns, name.substr(0, ind));
+                type = this.$$onResolveType(uri, name.substr(0, ind));
                 name = name.substr(ind + 1);
             }
             this.$$onPropertyStart(type, name);
-            var val = this.$$getAttrValue(attr, ctx);
-            this.$$onObject(val);
-            this.$$onObjectEnd(val);
+            if (value[0] === "{") {
+                value = this.extension.parse(value, mctx);
+            }
+            this.$$onObject(value);
+            this.$$onObjectEnd(value);
             this.$$onPropertyEnd(type, name);
-        }
-
-        private $$getAttrValue (attr: Attr, ctx: T): any {
-            var val = attr.value;
-            if (val[0] !== "{")
-                return val;
-            return this.extension.parse(val, attr, ctx);
+            return true;
         }
 
         private $$ensure () {
@@ -222,70 +263,70 @@ module sax.xaml {
                 .onResolveObject(this.$$onResolveObject);
         }
 
-        onResolveType (cb?: events.IResolveType): Parser<T> {
+        onResolveType (cb?: events.IResolveType): Parser {
             this.$$onResolveType = cb || ((xmlns, name) => Object);
             return this;
         }
 
-        onResolveObject (cb?: events.IResolveObject): Parser<T> {
+        onResolveObject (cb?: events.IResolveObject): Parser {
             this.$$onResolveObject = cb || ((type) => new type());
             return this;
         }
 
-        onObject (cb?: events.IObject): Parser<T> {
+        onObject (cb?: events.IObject): Parser {
             this.$$onObject = cb || ((obj) => {
             });
             return this;
         }
 
-        onObjectEnd (cb?: events.IObject): Parser<T> {
+        onObjectEnd (cb?: events.IObject): Parser {
             this.$$onObjectEnd = cb || ((obj) => {
             });
             return this;
         }
 
-        onContentObject (cb?: events.IObject): Parser<T> {
+        onContentObject (cb?: events.IObject): Parser {
             this.$$onContentObject = cb || ((obj) => {
             });
             return this;
         }
 
-        onContentText (cb?: events.IObject): Parser<T> {
+        onContentText (cb?: events.IObject): Parser {
             this.$$onContentText = cb || ((text) => {
             });
             return this;
         }
 
-        onName (cb?: events.IName): Parser<T> {
+        onName (cb?: events.IName): Parser {
             this.$$onName = cb || ((name) => {
             });
             return this;
         }
 
-        onKey (cb?: events.IKey): Parser<T> {
+        onKey (cb?: events.IKey): Parser {
             this.$$onKey = cb || ((key) => {
             });
             return this;
         }
 
-        onPropertyStart (cb?: events.IPropertyStart): Parser<T> {
+        onPropertyStart (cb?: events.IPropertyStart): Parser {
             this.$$onPropertyStart = cb || ((ownerType, propName) => {
             });
             return this;
         }
 
-        onPropertyEnd (cb?: events.IPropertyEnd): Parser<T> {
+        onPropertyEnd (cb?: events.IPropertyEnd): Parser {
             this.$$onPropertyEnd = cb || ((ownerType, propName) => {
             });
             return this;
         }
 
-        onError (cb?: events.IError): Parser<T> {
+        onError (cb?: events.IError): Parser {
             this.$$onError = cb || ((e) => true);
             return this;
         }
 
-        onEnd (cb: () => any): Parser<T> {
+        onEnd (cb: () => any): Parser {
             this.$$onEnd = cb;
             return this;
         }
