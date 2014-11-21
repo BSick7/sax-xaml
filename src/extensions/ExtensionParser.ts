@@ -174,11 +174,11 @@ module sax.xaml.extensions {
             if (typeof val.transmute === "function") {
                 val = (<IMarkupExtension>val).transmute(mctx);
             }
-            var item = mctx.getCurrentItem();
+            var obj = mctx.getCurrentItem().obj;
             if (!key) {
-                item.obj.init(val);
+                obj.init && obj.init(val);
             } else {
-                item.obj[key] = val;
+                obj[key] = val;
             }
         }
 

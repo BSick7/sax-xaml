@@ -483,11 +483,11 @@ var sax;
                     if (typeof val.transmute === "function") {
                         val = val.transmute(mctx);
                     }
-                    var item = mctx.getCurrentItem();
+                    var obj = mctx.getCurrentItem().obj;
                     if (!key) {
-                        item.obj.init(val);
+                        obj.init && obj.init(val);
                     } else {
-                        item.obj[key] = val;
+                        obj[key] = val;
                     }
                 };
 
