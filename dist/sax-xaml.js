@@ -442,4 +442,56 @@ var sax;
     })(sax.xaml || (sax.xaml = {}));
     var xaml = sax.xaml;
 })(sax || (sax = {}));
+var sax;
+(function (_sax) {
+    (function (xaml) {
+        (function (iterator) {
+            function parse(el, sax) {
+                var cur = el;
+                var stack = [];
+                while (cur) {
+                    sax.onElementEnd(cur);
+                    stack.push(cur);
+
+                    for (var i = 0, attrs = cur.attributes, len = attrs.length; i < len; i++) {
+                        sax.onAttribute(attrs[i]);
+                    }
+
+                    var y = findNext(cur);
+                    cur = y.next;
+                    for (var i = y.count; i > 0; i--) {
+                        sax.onElementEnd(stack.pop());
+                    }
+                }
+            }
+            iterator.parse = parse;
+
+            function findNext(curEl) {
+                var count = 0;
+                var next = curEl.firstElementChild;
+                if (next) {
+                    return {
+                        count: count,
+                        next: next
+                    };
+                } else {
+                    next = curEl;
+                    while (!next.nextElementSibling) {
+                        next = next.parentElement;
+                        if (!next)
+                            break;
+                        count++;
+                    }
+                    count++;
+                    return {
+                        count: count,
+                        next: next ? next.nextElementSibling : null
+                    };
+                }
+            }
+        })(xaml.iterator || (xaml.iterator = {}));
+        var iterator = xaml.iterator;
+    })(_sax.xaml || (_sax.xaml = {}));
+    var xaml = _sax.xaml;
+})(sax || (sax = {}));
 //# sourceMappingURL=sax-xaml.js.map

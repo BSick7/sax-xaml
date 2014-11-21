@@ -122,3 +122,11 @@ declare module sax.xaml.extensions {
         private $$destroy();
     }
 }
+declare module sax.xaml.iterator {
+    interface IXmlSax {
+        onElementStart(el: Element): any;
+        onElementEnd(el: Element): any;
+        onAttribute(attr: Attr): any;
+    }
+    function parse(el: Element, sax: IXmlSax): void;
+}

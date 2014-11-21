@@ -6,6 +6,11 @@
       "runCount": 10
     },
     {
+      "name": "Metro Iterator",
+      "test": "tests/iterator/parse",
+      "runCount": 10
+    },
+    {
       "name": "Extension Parser",
       "test": "tests/extension",
       "runCount": 551
