@@ -8,7 +8,7 @@ module sax.xaml.extensions.tests.basic {
             this.ResourceKey = val;
         }
 
-        transmute (ctx: IDocumentContext): any {
+        transmute (os: any[]): any {
             if (this.ResourceKey === "Two")
                 return 2;
             return this;
@@ -21,7 +21,7 @@ module sax.xaml.extensions.tests.basic {
         }
     }
 
-    var parser = new ExtensionParser<IDocumentContext>()
+    var parser = new ExtensionParser()
         .onResolveType((xmlns, name) => {
             if (xmlns === sax.xaml.DEFAULT_XMLNS && name === "StaticResource")
                 return StaticResource;
@@ -41,31 +41,25 @@ module sax.xaml.extensions.tests.basic {
                     return "";
                 }
             };
-        },
-        docCtx: function (): IDocumentContext {
-            return {
-                curObject: undefined,
-                objectStack: []
-            };
         }
     };
 
     QUnit.test("StaticResource (implicit)", () => {
-        var val = parser.parse("{StaticResource SomeStyle}", mock.resolver(), mock.docCtx());
+        var val = parser.parse("{StaticResource SomeStyle}", mock.resolver(), []);
         var expected = new StaticResource();
         expected.ResourceKey = "SomeStyle";
         deepEqual(val, expected);
     });
 
     QUnit.test("StaticResource (Property)", () => {
-        var val = parser.parse("{StaticResource ResourceKey=Some\\{Style}", mock.resolver(), mock.docCtx());
+        var val = parser.parse("{StaticResource ResourceKey=Some\\{Style}", mock.resolver(), []);
         var expected = new StaticResource();
         expected.ResourceKey = "Some{Style";
         deepEqual(val, expected);
     });
 
     QUnit.test("Subextension", () => {
-        var val = parser.parse("{Random Foo={StaticResource Two}}", mock.resolver(), mock.docCtx());
+        var val = parser.parse("{Random Foo={StaticResource Two}}", mock.resolver(), []);
         var expected = new Random();
         expected.Foo = 2;
         deepEqual(val, expected);

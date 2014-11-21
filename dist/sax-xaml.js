@@ -16,6 +16,7 @@ var sax;
         var Parser = (function () {
             function Parser() {
                 this.$$onEnd = null;
+                this.$$objectStack = [];
                 this.extension = this.createExtensionParser();
                 this.setNamespaces(xaml.DEFAULT_XMLNS, xaml.DEFAULT_XMLNS_X);
             }
@@ -30,32 +31,24 @@ var sax;
                 return new xaml.extensions.ExtensionParser();
             };
 
-            Parser.prototype.createContext = function () {
-                return {
-                    curObject: undefined,
-                    objectStack: []
-                };
-            };
-
             Parser.prototype.parse = function (el) {
                 this.$$ensure();
-                var ctx = this.createContext();
-                this.$$handleElement(el, ctx, true);
+                this.$$handleElement(el, true);
                 this.$$destroy();
                 return this;
             };
 
-            Parser.prototype.$$handleElement = function (el, ctx, isContent) {
+            Parser.prototype.$$handleElement = function (el, isContent) {
                 var name = el.localName;
                 var xmlns = el.namespaceURI;
                 if (this.$$tryHandleError(el, xmlns, name))
                     return;
-                if (this.$$tryHandlePropertyTag(el, ctx, xmlns, name))
+                if (this.$$tryHandlePropertyTag(el, xmlns, name))
                     return;
 
                 var type = this.$$onResolveType(xmlns, name);
-                var obj = ctx.curObject = this.$$onResolveObject(type);
-                ctx.objectStack.push(obj);
+                var obj = this.$$onResolveObject(type);
+                this.$$objectStack.push(obj);
 
                 if (isContent) {
                     this.$$onContentObject(obj);
@@ -64,13 +57,13 @@ var sax;
                 }
 
                 for (var i = 0, attrs = el.attributes, len = attrs.length; i < len; i++) {
-                    this.$$handleAttribute(attrs[i], ctx);
+                    this.$$processAttribute(attrs[i]);
                 }
 
                 var child = el.firstElementChild;
                 var hasChildren = !!child;
                 while (child) {
-                    this.$$handleElement(child, ctx, true);
+                    this.$$handleElement(child, true);
                     child = child.nextElementSibling;
                 }
 
@@ -80,9 +73,8 @@ var sax;
                         this.$$onContentText(text.trim());
                 }
 
-                ctx.objectStack.pop();
+                this.$$objectStack.pop();
                 this.$$onObjectEnd(obj);
-                ctx.curObject = ctx.objectStack[ctx.objectStack.length - 1];
             };
 
             Parser.prototype.$$tryHandleError = function (el, xmlns, name) {
@@ -92,7 +84,7 @@ var sax;
                 return true;
             };
 
-            Parser.prototype.$$tryHandlePropertyTag = function (el, ctx, xmlns, name) {
+            Parser.prototype.$$tryHandlePropertyTag = function (el, xmlns, name) {
                 var ind = name.indexOf('.');
                 if (ind < 0)
                     return false;
@@ -104,7 +96,7 @@ var sax;
 
                 var child = el.firstElementChild;
                 while (child) {
-                    this.$$handleElement(child, ctx, false);
+                    this.$$handleElement(child, false);
                     child = child.nextElementSibling;
                 }
 
@@ -113,38 +105,54 @@ var sax;
                 return true;
             };
 
-            Parser.prototype.$$handleAttribute = function (attr, ctx) {
-                if (attr.prefix === "xmlns")
-                    return;
+            Parser.prototype.$$processAttribute = function (attr) {
+                var prefix = attr.prefix;
                 var name = attr.localName;
-                if (!attr.prefix && name === "xmlns")
-                    return;
-                var xmlns = attr.namespaceURI;
-                if (xmlns === this.$$xXmlns) {
-                    if (name === "Name")
-                        return this.$$onName(this.$$getAttrValue(attr, ctx));
-                    if (name === "Key")
-                        return this.$$onKey(this.$$getAttrValue(attr, ctx));
-                }
+                if (this.$$shouldSkipAttr(prefix, name))
+                    return true;
+                var uri = attr.namespaceURI;
+                var value = attr.value;
+                if (this.$$tryHandleXAttribute(uri, name, value))
+                    return true;
+                return this.$$handleAttribute(uri, name, value, attr);
+            };
+
+            Parser.prototype.$$shouldSkipAttr = function (prefix, name) {
+                if (prefix === "xmlns")
+                    return true;
+                return (!prefix && name === "xmlns");
+            };
+
+            Parser.prototype.$$tryHandleXAttribute = function (uri, name, value) {
+                if (uri !== this.$$xXmlns)
+                    return false;
+                if (name === "Name")
+                    this.$$onName(value);
+                if (name === "Key")
+                    this.$$onKey(value);
+                return true;
+            };
+
+            Parser.prototype.$$handleAttribute = function (uri, name, value, attr) {
                 var type = null;
                 var name = name;
                 var ind = name.indexOf('.');
                 if (ind > -1) {
-                    type = this.$$onResolveType(xmlns, name.substr(0, ind));
+                    type = this.$$onResolveType(uri, name.substr(0, ind));
                     name = name.substr(ind + 1);
                 }
                 this.$$onPropertyStart(type, name);
-                var val = this.$$getAttrValue(attr, ctx);
+                var val = this.$$getAttrValue(value, attr);
                 this.$$onObject(val);
                 this.$$onObjectEnd(val);
                 this.$$onPropertyEnd(type, name);
+                return true;
             };
 
-            Parser.prototype.$$getAttrValue = function (attr, ctx) {
-                var val = attr.value;
+            Parser.prototype.$$getAttrValue = function (val, attr) {
                 if (val[0] !== "{")
                     return val;
-                return this.extension.parse(val, attr, ctx);
+                return this.extension.parse(val, attr, this.$$objectStack);
             };
 
             Parser.prototype.$$ensure = function () {
@@ -252,41 +260,37 @@ var sax;
                     this.$$xXmlns = xXmlns;
                 };
 
-                ExtensionParser.prototype.parse = function (value, resolver, docCtx) {
+                ExtensionParser.prototype.parse = function (value, resolver, os) {
                     this.$$ensure();
                     var ctx = {
                         text: value,
                         i: 1,
                         acc: "",
                         error: "",
-                        resolver: resolver,
-                        docCtx: docCtx
+                        resolver: resolver
                     };
-                    var obj = this.$$doParse(ctx);
+                    var obj = this.$$doParse(ctx, os);
                     if (ctx.error)
                         this.$$onError(ctx.error);
                     this.$$destroy();
                     return obj;
                 };
 
-                ExtensionParser.prototype.$$doParse = function (ctx) {
+                ExtensionParser.prototype.$$doParse = function (ctx, os) {
                     if (!this.$$parseName(ctx))
                         return undefined;
-                    if (!this.$$startExtension(ctx))
+                    if (!this.$$startExtension(ctx, os))
                         return undefined;
 
                     while (ctx.i < ctx.text.length) {
-                        if (!this.$$parseKeyValue(ctx))
+                        if (!this.$$parseKeyValue(ctx, os))
                             break;
                         if (ctx.text[ctx.i] === "}") {
                             break;
                         }
                     }
 
-                    var dc = ctx.docCtx;
-                    var obj = dc.objectStack.pop();
-                    dc.curObject = dc.objectStack[dc.objectStack.length - 1];
-                    return obj;
+                    return os.pop();
                 };
 
                 ExtensionParser.prototype.$$parseName = function (ctx) {
@@ -306,28 +310,28 @@ var sax;
                     return false;
                 };
 
-                ExtensionParser.prototype.$$startExtension = function (ctx) {
+                ExtensionParser.prototype.$$startExtension = function (ctx, os) {
                     var full = ctx.acc;
                     var ind = full.indexOf(":");
                     var prefix = (ind < 0) ? null : full.substr(0, ind);
                     var name = (ind < 0) ? full : full.substr(ind + 1);
-                    var uri = ctx.resolver.lookupNamespaceURI(prefix);
+                    var uri = prefix ? ctx.resolver.lookupNamespaceURI(prefix) : xaml.DEFAULT_XMLNS;
 
                     if (uri === this.$$xXmlns) {
                         var val = ctx.text.substr(ctx.i, ctx.text.length - ctx.i - 1);
                         ctx.i = ctx.text.length;
-                        return this.$$parseXExt(ctx, name, val);
+                        return this.$$parseXExt(ctx, os, name, val);
                     }
 
                     var type = this.$$onResolveType(uri, name);
-                    var obj = ctx.docCtx.curObject = this.$$onResolveObject(type);
-                    ctx.docCtx.objectStack.push(obj);
+                    var obj = this.$$onResolveObject(type);
+                    os.push(obj);
                     return true;
                 };
 
-                ExtensionParser.prototype.$$parseXExt = function (ctx, name, val) {
+                ExtensionParser.prototype.$$parseXExt = function (ctx, os, name, val) {
                     if (name === "Null") {
-                        ctx.docCtx.objectStack.push(null);
+                        os.push(null);
                         return true;
                     }
                     if (name === "Type") {
@@ -336,18 +340,18 @@ var sax;
                         var name = (ind < 0) ? val : val.substr(ind + 1);
                         var uri = ctx.resolver.lookupNamespaceURI(prefix);
                         var type = this.$$onResolveType(uri, name);
-                        ctx.docCtx.objectStack.push(type);
+                        os.push(type);
                         return true;
                     }
                     if (name === "Static") {
                         var func = new Function("return (" + val + ");");
-                        ctx.docCtx.objectStack.push(func());
+                        os.push(func());
                         return true;
                     }
                     return true;
                 };
 
-                ExtensionParser.prototype.$$parseKeyValue = function (ctx) {
+                ExtensionParser.prototype.$$parseKeyValue = function (ctx, os) {
                     var text = ctx.text;
                     ctx.acc = "";
                     var key = "";
@@ -363,18 +367,18 @@ var sax;
                                 return false;
                             }
                             ctx.i++;
-                            val = this.$$doParse(ctx);
+                            val = this.$$doParse(ctx, os);
                             if (ctx.error)
                                 return false;
                         } else if (cur === "=") {
                             key = ctx.acc;
                             ctx.acc = "";
                         } else if (cur === "}") {
-                            this.$$finishKeyValue(ctx.acc, key, val, ctx.docCtx);
+                            this.$$finishKeyValue(ctx.acc, key, val, os);
                             return true;
                         } else if (cur === ",") {
                             ctx.i++;
-                            this.$$finishKeyValue(ctx.acc, key, val, ctx.docCtx);
+                            this.$$finishKeyValue(ctx.acc, key, val, os);
                             return true;
                         } else {
                             ctx.acc += cur;
@@ -382,18 +386,19 @@ var sax;
                     }
                 };
 
-                ExtensionParser.prototype.$$finishKeyValue = function (acc, key, val, docCtx) {
+                ExtensionParser.prototype.$$finishKeyValue = function (acc, key, val, os) {
                     if (val === undefined) {
                         if (!(val = acc.trim()))
                             return;
                     }
                     if (typeof val.transmute === "function") {
-                        val = val.transmute(docCtx);
+                        val = val.transmute(os);
                     }
+                    var co = os[os.length - 1];
                     if (!key) {
-                        docCtx.curObject.init(val);
+                        co.init && co.init(val);
                     } else {
-                        docCtx.curObject[key] = val;
+                        co[key] = val;
                     }
                 };
 

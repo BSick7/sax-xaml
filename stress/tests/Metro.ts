@@ -14,7 +14,7 @@ class Metro extends StressTest {
     }
 
     runIteration () {
-        var parser = new sax.xaml.Parser<sax.xaml.IDocumentContext>()
+        var parser = new sax.xaml.Parser()
             .parse(this.xmlDoc.documentElement);
     }
 }
